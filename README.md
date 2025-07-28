@@ -1,7 +1,7 @@
 ![RUNTIME banner](images/banner.png)
 
 RUNTIME is a complete reimagining of what a programming language could and should be. RUNTIME is a heavily opinionated, dynamic interpreted language built for flexibility and adaptability.
-No type cages. No compile-time errors. No bloat. Just you, your ideas and your canvas.
+No type cages. No compile-time errors. No bloat. Just you, your ideas and a blank canvas.
 
 ## Philosophy - The 6 Core Pillars of RUNTIME
 
@@ -28,8 +28,7 @@ Make one typo and your whole app explodes? That's a JOKE. In RUNTIME, errors are
 ### Simplicity is key
 
 > **An idiot admires complexity, a genius admires simplicity**
->
-> -   Terry Davis, creator of TempleOS
+> — Terry Davis, creator of TempleOS
 
 Tuples, arrays, lists, stacks, queues... WHY? RUNTIME gives you just 6 types. No bloat. No confusion. No distractions. Still, all the tools you need to ACTUALLY bring your projects to life.
 
