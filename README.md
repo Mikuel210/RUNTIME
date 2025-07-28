@@ -1,11 +1,9 @@
 ![RUNTIME banner](images/banner.png)
 
-RUNTIME is a complete reimagining of what a programming language could and should be.
+**RUNTIME is a complete reimagining of what a programming language could and should be.**
 
 RUNTIME is a heavily opinionated, dynamic interpreted language built for flexibility and adaptability.
 No type cages. No compile-time errors. No bloat. Just you, your ideas and a blank canvas.
-
-> Disclaimer: My English is junk and I used AI to rewrite some parts of this README. I haven't used AI in any other part of this project.
 
 ## Philosophy - The 6 Core Pillars of RUNTIME
 
@@ -37,6 +35,13 @@ Make one typo and your whole app explodes? That's a JOKE. In RUNTIME, errors are
 
 Tuples, arrays, lists, stacks, queues... WHY? RUNTIME gives you just 6 types. No bloat. No confusion. No distractions. Still, all the tools you need to ACTUALLY bring your projects to life.
 
+## Use cases
+
+-   **Self-modifying programs**: AI written on-demand features? Self-evolving code? You can do that and much more.
+-   **Self-debugging code**: Instead of crashing on errors, your program can patch itself and keep going.
+-   **Hot-swappable features**: Replace entire functions and modules at runtime. No restarts required.
+-   **Safety-critical software**: No don't do that.
+
 ## Language design
 
 ### Core types
@@ -61,17 +66,19 @@ Tuples, arrays, lists, stacks, queues... WHY? RUNTIME gives you just 6 types. No
 
 #### Assigning and reading variables
 
+To assign variables, use `#var = "value"`. To read them, use `$var`. For non-conflicting variable names, you can skip the `$` for getting its value.
+
 ```runtime
 #var = "Hello World!"
 $print($var) // > Hello World!
 
-// Non conflicting names can skip the $
+// Non-conflicting names can skip the $
 print(var) // > Hello World!
 ```
 
 ### Functions
 
-Functions are just text variables. Any text is executable via `()`.
+Functions are text variables. Any text is executable via `()`.
 
 ```runtime
 #say_hello = {
@@ -91,13 +98,23 @@ You can get arguments with the `args` keyword and pass back values with the `ret
 get_input("Enter your name") // > INPUT: Enter your name
 ```
 
-### Lists and dictionaries
+### Lists
+
+You can define lists with comma-separated values encapsulated between brackets. To read a value, use `$list[i]` and to overwrite it, use `#list[i] = "value"`.
 
 ```runtime
 #list = [1, 2, 3]
 #list[0] = 42
 print($list[0])    // > 42
 
+
+```
+
+### Dictionaries
+
+You can define lists with comma-separated key-value pairs encapsulated between brackets. Each key-value pair is defined with a key object, a colon and a value object. To read a value, use `$dict[key]` and to overwrite it, use `#dict[key] = "value"`.
+
+```runtime
 #dict = [
     "name": "Duna",
     "age": 42
@@ -108,6 +125,8 @@ print(dict["age"]) //  > 49
 ```
 
 ### Built-in functions
+
+Built in functions are stored in variables, but you can restore them in any time with `builtin("name")`.
 
 ```runtime
 print("Hello World!") // > Hello World!
@@ -122,13 +141,15 @@ print("Hello World!") // > INPUT: Hello World!
 print("Hello World!") // > Hello World!
 ```
 
-### Errors are values
+### Errors
+
+Errors are values you can inspect and react to.
 
 ```runtime
-#x = "Not callable"
+#x = "Not callable!"
 #result = x()
 
-print($result) // > Syntax Error (...)
+print($result) // > Syntax Error
 
 if ($result is error) {
     print("Caught: " + $result.message)
@@ -145,17 +166,25 @@ if ($result is error) {
 
 #### Branching
 
-```runtime
-if (true) {
-    print("Hello World!")
-}
+-   **If**: Executes the provided text object if the provided condition is met
 
-unless (true) {
-    print("This won't run")
-}
-```
+    ```runtime
+    if (true) {
+        print("Hello World!")
+    }
+    ```
+
+-   **Unless**: Executes the provided text object if the provided condition isn't met
+
+    ```runtime
+    unless (true) {
+        print("This won't run")
+    }
+    ```
 
 #### Loops
+
+-   **While**: If the provided condition is met, the provided text object is executed and the code block repeats.
 
 ```runtime
 #i = 3
@@ -169,3 +198,13 @@ while ($i > 0) {
 // > 2 loop(s) left!
 // > 1 loop(s) left!
 ```
+
+---
+
+RUNTIME isn't just a new language.
+
+It's a new way to think.
+
+> RUNTIME is a work in progress. Stay tuned for updates.
+
+> DISCLAIMER: I have used AI to rewrite some parts of this README. I haven't used AI for anything else in this project.
