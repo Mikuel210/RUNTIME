@@ -1,6 +1,49 @@
 
-from abc import ABC, abstractmethod
+#region IMPORTS
 
+from abc import ABC, abstractmethod
+from colorama import Fore, Back
+
+#endregion
+
+
+#region CONSOLE
+
+def color(message: str, background: str, foreground: str = Fore.BLACK):
+    return background + foreground + message + Fore.RESET + Back.RESET
+
+def string_with_arrows(start_position, end_position):
+    result = ''
+    text = start_position.file_text
+
+    # Calculate indices
+    index_start = max(text.rfind('\n', 0, start_position.index), 0)
+    index_end = text.find('\n', index_start + 1)
+    if index_end < 0: index_end = len(text)
+    
+    # Generate each line
+    line_count = end_position.line - start_position.line + 1
+
+    for i in range(line_count):
+        # Calculate line columns
+        line = text[index_start: index_end]
+
+        column_start = start_position.column if i == 0 else 0
+        column_end = end_position.column if i == line_count - 1 else len(line) - 1
+
+        # Append to result
+        result += line + '\n'
+        result += ' ' * column_start + '^' * (column_end - column_start)
+
+        # Re-calculate indices
+        index_start = index_end
+        index_end = text.find('\n', index_start + 1)
+
+        if index_end < 0: index_end = len(text)
+
+    return result.replace('\t', '')
+
+#endregion
 
 #region ERRORS
 
@@ -12,10 +55,12 @@ class Error:
         self.details = details
 
     def as_string(self):
-        return f"""{self.error_name}: {self.details}
+        return f"""{color(self.error_name + ':', Back.RED)} {self.details}
 File: {self.start_position.file_name}
 From: Line {self.start_position.line + 1}, character {self.start_position.column + 1}
-To: Line {self.end_position.line + 1}, character {self.end_position.column + 1}"""
+To: Line {self.end_position.line + 1}, character {self.end_position.column + 1}
+
+{string_with_arrows(self.start_position, self.end_position)}"""
     
     def __repr__(self) -> str:
         return self.as_string()
@@ -49,10 +94,9 @@ class RuntimeError(Error):
             position = context.parent_entry_position
             context = context.parent
 
-        return 'Traceback:' + output
+        return color('Traceback:', Back.LIGHTBLUE_EX) + output
 
 #endregion
-
 
 
 #region POSITION
@@ -90,6 +134,7 @@ TT_ADD = "ADD"
 TT_SUBTRACT = "SUBTRACT"
 TT_MULIPLY = "MULTIPLY"
 TT_DIVIDE = "DIVIDE"
+TT_POWER = "POWER"
 TT_OPEN_PARENTHESIS = "OPEN_PARENTHESIS"
 TT_CLOSE_PARENTHESIS = "CLOSE_PARENTHESIS"
 
@@ -149,6 +194,8 @@ class Lexer:
                 tokens.append(Token(TT_MULIPLY, start_position = self.position))
             elif self.current_character == '/':
                 tokens.append(Token(TT_DIVIDE, start_position = self.position))
+            elif self.current_character == '^':
+                tokens.append(Token(TT_POWER, start_position = self.position))
             elif self.current_character == '(':
                 tokens.append(Token(TT_OPEN_PARENTHESIS, start_position = self.position))
             elif self.current_character == ')':
@@ -186,7 +233,6 @@ class Lexer:
         return Token(TT_NUMBER, float(number_string), start_position, self.position.copy())
         
 #endregion
-
 
 
 #region NODES
@@ -344,7 +390,6 @@ class Parser:
         return result.success(left)
 
 #endregion
-
 
 
 #region RUNTIME RESULT
@@ -545,23 +590,33 @@ class Interpreter():
 
 #region RUN
 
-def run(file_name, text):
+def make_tokens(file_name: str, text: str) -> list[Token]:
     lexer = Lexer(file_name, text)
     tokens, error = lexer.make_tokens()
 
-    if error: return tokens, error
+    return tokens, error
 
-    # Generate Abstract Syntax Tree
+def generate_ast(tokens: list[Token]) -> ParseResult:
     parser = Parser(tokens)
     ast = parser.parse()
 
-    if ast.error: return None, ast.error
+    return ast
 
-    # Interpret AST
+def interpret_ast(ast: Node):
     interpreter = Interpreter()
     context = Context('Program')
     result = interpreter.visit(ast.node, context)
 
+    return result
+
+def run(file_name, text):
+    tokens, error = make_tokens(file_name, text)
+    if error: return None, error
+
+    ast = generate_ast(tokens)
+    if ast.error: return None, ast.error
+
+    result = interpret_ast(ast)
     return result.value, result.error
 
 #endregion

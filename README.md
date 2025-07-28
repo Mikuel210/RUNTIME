@@ -106,8 +106,6 @@ You can define lists with comma-separated values encapsulated between brackets. 
 #list = [1, 2, 3]
 #list[0] = 42
 print($list[0])    // > 42
-
-
 ```
 
 ### Dictionaries
