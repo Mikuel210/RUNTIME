@@ -49,7 +49,7 @@ Tuples, arrays, lists, stacks, queues... WHY? RUNTIME gives you just 6 types. No
 | Type                  | Syntax                           | Description                                                                                                                                                                                                |
 | --------------------- | -------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **Text**              | `"Single line"`, `{ Multiline }` | All text is executable via `()`. Multiline strings using `{}` can be nested.                                                                                                                               |
-| **Number**            | `3.14`, `42`                     | Numbers are just numbers. No `int`, `float`, `byte` or `double`. One numeric type for all.                                                                                                                 |
+| **Number**            | `3.14`, `42`                     | Numbers are just numbers. No `int`, `float`, `byte` or `double`, just one numeric type for all. `true` and `false` are variables with the default values of 1 and 0 respectively.                                                                                                                |
 | **List**              | `[1, 2, 3]`                      | Lists are just lists. No `stack`, `queue`, `array` or `tuple`. Just a single, flexible, ordered container.                                                                                                 |
 | **Dictionary**        | `["x": 1, "y": 2]`               | A list of key-value mappings. Syntax automatically detects colons to distinguish them from lists.                                                                                                          |
 | **Error**             | `error("Title", "Message")`      | Errors are just values. Your program keeps going. Inspect them, ignore them or react to them.                                                                                                              |
@@ -201,8 +201,10 @@ while ($i > 0) {
 
 RUNTIME isn't just a new language.
 
-It's a new way to think.
+**It's a new way to think.**
 
-> RUNTIME is a work in progress. Stay tuned for updates.
+---
+
+> RUNTIME is a work in progress and limited functionality is available. Stay tuned for updates.
 
 > DISCLAIMER: I have used AI to rewrite some parts of this README. I haven't used AI for anything else in this project.

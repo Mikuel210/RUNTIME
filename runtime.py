@@ -3,6 +3,7 @@
 
 from abc import ABC, abstractmethod
 from colorama import Fore, Back
+from string import ascii_letters
 
 #endregion
 
@@ -129,12 +130,24 @@ class Position:
 
 #region TOKENS
 
+## Math Expressions
 TT_NUMBER = "NUMBER"
 TT_ADD = "ADD"
 TT_SUBTRACT = "SUBTRACT"
 TT_MULIPLY = "MULTIPLY"
 TT_DIVIDE = "DIVIDE"
 TT_POWER = "POWER"
+
+## Variables
+TT_VARIABLE = "VARIABLE"
+TT_IDENTIFIER = "IDENTIFIER"
+TT_EQUALS = "EQUALS"
+
+## General
+TT_KEYWORD = "KEYWORD"
+
+KEYWORDS = ['if', 'unless']
+
 TT_OPEN_PARENTHESIS = "OPEN_PARENTHESIS"
 TT_CLOSE_PARENTHESIS = "CLOSE_PARENTHESIS"
 
@@ -151,6 +164,9 @@ class Token:
             self.end_position = self.start_position.copy()
             self.end_position.advance()
 
+    def matches(self, type_, value) -> bool:
+        return (self.type == type_) and (self.value == value)
+
     def __repr__(self):
         return self.type + (f": {self.value}" if self.value else "")
     
@@ -159,6 +175,8 @@ class Token:
 #region LEXER
 
 DIGITS = '0123456789'
+LETTERS = ascii_letters
+LETTERS_DIGITS = LETTERS + DIGITS
 
 class Lexer:
     def __init__(self, file_name, text):
@@ -186,6 +204,11 @@ class Lexer:
             elif self.current_character in DIGITS:
                 tokens.append(self.make_number())
                 continue
+            elif self.current_character in LETTERS:
+                tokens.append(self.make_identifier())
+                continue
+            elif self.current_character == '$':
+                tokens.append(Token(TT_VARIABLE, start_position = self.position))
             elif self.current_character == '+':
                 tokens.append(Token(TT_ADD, start_position = self.position))
             elif self.current_character == '-':
@@ -196,6 +219,8 @@ class Lexer:
                 tokens.append(Token(TT_DIVIDE, start_position = self.position))
             elif self.current_character == '^':
                 tokens.append(Token(TT_POWER, start_position = self.position))
+            elif self.current_character == '=':
+                tokens.append(Token(TT_EQUALS, start_position = self.position))
             elif self.current_character == '(':
                 tokens.append(Token(TT_OPEN_PARENTHESIS, start_position = self.position))
             elif self.current_character == ')':
@@ -211,7 +236,7 @@ class Lexer:
 
             self.advance()
 
-        tokens.append(Token(TT_EOF))
+        tokens.append(Token(TT_EOF, start_position = self.position))
         return tokens, None
     
     def make_number(self):
@@ -231,6 +256,17 @@ class Lexer:
             self.advance()
 
         return Token(TT_NUMBER, float(number_string), start_position, self.position.copy())
+    
+    def make_identifier(self):
+        identifier_string = ''
+        start_position = self.position.copy()
+
+        while (self.current_character != None) and (self.current_character in LETTERS_DIGITS + '_'):
+            identifier_string += self.current_character
+            self.advance()
+
+        token_type = TT_KEYWORD if identifier_string in KEYWORDS else TT_IDENTIFIER
+        return Token(token_type, identifier_string, start_position, self.position)
         
 #endregion
 
@@ -241,6 +277,8 @@ class Node:
     def __init__(self, start_position: Position | None = None, end_position: Position | None = None):
         self.start_position = start_position
         self.end_position = end_position
+
+## Math Expressions
 
 class NumberNode(Node):
     def __init__(self, token: Token):
@@ -271,6 +309,27 @@ class UnaryOperationNode(Node):
 
     def __repr__(self) -> str:
         return f'({self.operation_token}, {self.node})'
+    
+## Variables
+
+class VariableNameNode(Node):
+    def __init__(self, variable_name_token):
+        super().__init__(variable_name_token.start_position, variable_name_token.end_position)
+
+        self.variable_name_token = variable_name_token
+
+class VariableAccessNode(Node):
+    def __init__(self, variable_name_node):
+        super().__init__(variable_name_node.start_position, variable_name_node.end_position)
+
+        self.variable_name_node = variable_name_node
+
+class VariableAssignmentNode(Node):
+    def __init__(self, variable_name_node, value_node):
+        super().__init__(variable_name_node.start_position, value_node.end_position)
+
+        self.variable_name_node = variable_name_node
+        self.value_node = value_node
 
 #endregion
 
@@ -280,20 +339,25 @@ class ParseResult:
     def __init__(self):
         self.error = None
         self.node = None
+        self.advance_count = 0
 
+    def register_advancement(self):
+        self.advance_count += 1
+    
     def register(self, result):
-        if isinstance(result, ParseResult):
-            if result.error: self.error = result.error
-            return result.node
+        self.advance_count += result.advance_count
 
-        return result
+        if result.error: self.error = result.error
+        return result.node
     
     def success(self, node):
         self.node = node
         return self
     
     def failure(self, error):
-        self.error = error
+        if not self.error or self.advance_count == 0:
+            self.error = error
+
         return self
 
 #endregion
@@ -331,27 +395,51 @@ class Parser:
 
     ## Binary Operations
 
-    def factor(self):
+    def atom(self):
         result = ParseResult()
         token = self.current_token
 
-        if token.type in (TT_ADD, TT_SUBTRACT):
-            result.register(self.advance())
-            factor = result.register(self.factor())
+        if token.type == TT_NUMBER:
+            result.register_advancement()
+            self.advance()
 
-            if result.error: return result            
-            return result.success(UnaryOperationNode(token, factor))
-        elif token.type == TT_NUMBER:
-            result.register(self.advance())
             return result.success(NumberNode(token))
+        
+        elif token.type == TT_VARIABLE:
+            result.register_advancement()
+            self.advance()
+
+            variable_name = self.current_token
+
+            if not variable_name.type in (TT_IDENTIFIER, TT_KEYWORD):
+                return result.failure(InvalidSyntaxError(
+                    variable_name.start_position, variable_name.end_position,
+                    'Expected identifier'
+                ))
+            
+            result.register_advancement()
+            self.advance()
+
+            return result.success(VariableAccessNode(variable_name))
+        
+        elif token.type == TT_IDENTIFIER:
+            result.register_advancement()
+            self.advance()
+
+            return result.success(VariableAccessNode(token))
+
         elif token.type == TT_OPEN_PARENTHESIS:
-            result.register(self.advance())
+            result.register_advancement()
+            self.advance()
+
             expression = result.register(self.expression())
 
             if result.error: return result
 
             if self.current_token.type == TT_CLOSE_PARENTHESIS:
-                result.register(self.advance())
+                result.register_advancement()
+                self.advance()
+
                 return result.success(expression)
             else:
                 return result.failure(InvalidSyntaxError(
@@ -359,30 +447,103 @@ class Parser:
                     self.current_token.end_position,
                     "Expected ')'"
                 ))
-        
+            
         return result.failure(InvalidSyntaxError(
             token.start_position, 
             token.end_position, 
-            "Expected a number"
+            "Expected a number, '+', '-', or '('"
         ))
+
+    def power(self):
+        return self.binary_operation(self.atom, (TT_POWER, ), self.factor)
+
+    def factor(self):
+        result = ParseResult()
+        token = self.current_token
+
+        if token.type in (TT_ADD, TT_SUBTRACT):
+            result.register_advancement()
+            self.advance()
+
+            factor = result.register(self.factor())
+
+            if result.error: return result            
+            return result.success(UnaryOperationNode(token, factor))
+        
+        return self.power()
 
     def term(self):
         return self.binary_operation(self.factor, (TT_MULIPLY, TT_DIVIDE))
+    
+    def variable(self):
+        result = ParseResult()
+        token = self.current_token
+
+        if token.type == TT_IDENTIFIER:
+            result.register_advancement()
+            self.advance()
+
+            return result.success()
 
     def expression(self):
-        return self.binary_operation(self.term, (TT_ADD, TT_SUBTRACT))
-    
-    def binary_operation(self, function, operation_tokens: tuple):
         result = ParseResult()
-        left = result.register(function())
+        
+        if self.current_token.type == TT_REFERENCE:
+            result.register_advancement()
+            self.advance()
+
+            token = self.current_token
+
+            if not token.type in (TT_IDENTIFIER, TT_KEYWORD):
+                return result.failure(InvalidSyntaxError(
+                    token.start_position, token.end_position,
+                    'Expected identifier'
+                ))
+            
+            variable_name = self.current_token
+
+            result.register_advancement()
+            self.advance()
+
+            token = self.current_token
+
+            if token.type != TT_EQUALS:
+                return result.failure(InvalidSyntaxError(
+                    token.start_position, token.end_position,
+                    "Expected '='"
+                ))
+            
+            result.register_advancement()
+            self.advance()
+
+            expression = result.register(self.expression())
+
+            if result.error: return result
+            return result.success(VariableAssignmentNode(variable_name, expression))
+
+        node = result.register(self.binary_operation(self.term, (TT_ADD, TT_SUBTRACT)))
+
+        if result.error: 
+            return result.failure(InvalidSyntaxError(
+                self.current_token.start_position, self.current_token.end_position,
+                "Expected '#', number, identifier, '+', '-', or '('"
+            ))
+        
+        return result.success(node)
+    
+    def binary_operation(self, left_function, operation_tokens: tuple, right_function = None):
+        result = ParseResult()
+        left = result.register(left_function())
 
         if result.error: return result
 
         while self.current_token.type in operation_tokens:
             token = self.current_token
-            result.register(self.advance())
+            result.register_advancement()
+            self.advance()
 
-            right = result.register(function())
+
+            right = result.register(right_function() if right_function else left_function())
             if result.error: return result
 
             left = BinaryOperationNode(left, token, right) # type: ignore
@@ -430,6 +591,10 @@ class RuntimeObject(ABC):
         self.context = context
         return self
     
+    @abstractmethod
+    def copy(self):
+        pass
+    
     ## Binary Operations
 
     @abstractmethod
@@ -448,6 +613,10 @@ class RuntimeObject(ABC):
     def divided_by(self, other) -> tuple[object | None, RuntimeError | None]:
         pass
 
+    @abstractmethod
+    def powered_by(self, other) -> tuple[object | None, RuntimeError | None]:
+        pass
+
 class Number(RuntimeObject):
     def __init__(self, value):
         self.value = value
@@ -459,11 +628,20 @@ class Number(RuntimeObject):
     def set_context(self, context=None):
         return super().set_context(context)
     
+    def copy(self):
+        copy = Number(self.value)
+        copy.set_position(self.start_position, self.end_position)
+        copy.set_context(self.context)
+
+        return copy
+    
     ## Binary Operations
 
     def added_to(self, other: RuntimeObject) -> tuple[RuntimeObject | None, RuntimeError | None]:
         if isinstance(other, Number):
-            return Number(self.value + other.value).set_context(self.context), None
+            return Number(self.value + other.value)\
+                .set_context(self.context)\
+                .set_position(self.start_position, other.end_position), None
         
         return (None, RuntimeError(
             self.start_position, other.end_position,
@@ -473,7 +651,9 @@ class Number(RuntimeObject):
         
     def subtracted_by(self, other: RuntimeObject) -> tuple[RuntimeObject | None, RuntimeError | None]:
         if isinstance(other, Number):
-            return Number(self.value - other.value).set_context(self.context), None
+            return Number(self.value - other.value)\
+                .set_context(self.context)\
+                .set_position(self.start_position, other.end_position), None
 
         return (None, RuntimeError(
             self.start_position, other.end_position,
@@ -483,7 +663,9 @@ class Number(RuntimeObject):
         
     def multiplied_by(self, other: RuntimeObject) -> tuple[RuntimeObject | None, RuntimeError | None]:
         if isinstance(other, Number):
-            return Number(self.value * other.value).set_context(self.context), None
+            return Number(self.value * other.value)\
+                .set_context(self.context)\
+                .set_position(self.start_position, other.end_position), None
 
         return (None, RuntimeError(
             self.start_position, other.end_position,
@@ -501,11 +683,25 @@ class Number(RuntimeObject):
                     self.context
                 )
             
-            return Number(self.value / other.value).set_context(self.context), None
+            return Number(self.value / other.value)\
+                .set_context(self.context)\
+                .set_position(self.start_position, other.end_position), None
 
         return (None, RuntimeError(
             self.start_position, other.end_position,
             f"An object of type {__class__.__name__} can't be multiplied by an object of type {type(other).__name__}",
+            self.context
+        ))
+
+    def powered_by(self, other: RuntimeObject) -> tuple[RuntimeObject | None, RuntimeError | None]:
+        if isinstance(other, Number):
+            return Number(self.value ** other.value)\
+                .set_context(self.context)\
+                .set_position(self.start_position, other.end_position), None
+
+        return (None, RuntimeError(
+            self.start_position, other.end_position,
+            f"An object of type {__class__.__name__} can't be raised to the power of an object of type {type(other).__name__}",
             self.context
         ))
 
@@ -521,6 +717,34 @@ class Context:
         self.display_name = display_name
         self.parent = parent
         self.parent_entry_position = parent_entry_position
+        self.symbol_table = None
+
+#endregion
+
+#region SYMBOL TABLE
+
+class SymbolTable:
+    def __init__(self):
+        self.symbols = {}
+        self.parent = None
+
+    def get(self, key):
+        value = self.symbols.get(key, None)
+
+        if value is None and isinstance(self.parent, SymbolTable):
+            return self.parent.get(key)
+        
+        return value
+    
+    def set(self, key, value):
+        self.symbols[key] = value
+
+    def remove(self, key):
+        del self.symbols[key]
+
+global_symbol_table = SymbolTable()
+global_symbol_table.set('true', Number(1))
+global_symbol_table.set('false', Number(0))
 
 #endregion
 
@@ -562,6 +786,8 @@ class Interpreter():
             output, error = left.multiplied_by(right)
         elif node.operator_token.type == TT_DIVIDE:
             output, error = left.divided_by(right)
+        elif node.operator_token.type == TT_POWER:
+            output, error = left.powered_by(right)
 
         if error: return result.failure(error) # type: ignore
         
@@ -585,6 +811,31 @@ class Interpreter():
             .set_context(context)
             .set_position(node.start_position, node.end_position
         ))
+    
+    def visit_VariableAccessNode(self, node: VariableAccessNode, context: Context):
+        result = RuntimeResult()
+        variable_name = node.variable_name_token.value
+        value = context.symbol_table.get(variable_name)
+
+        if not value:
+            return result.failure(RuntimeError(
+                node.start_position, node.end_position,
+                f"Variable '{variable_name}' is not defined.",
+                context
+            ))
+
+        value = value.copy().set_position(node.start_position, node.end_position) # Fix position for error messages
+        return result.success(value)
+    
+    def visit_VariableAssignmentNode(self, node: VariableAssignmentNode, context: Context):
+        result = RuntimeResult()
+        variable_name = node.variable_name_token.value
+
+        value = result.register(self.visit(node.value_node, context))
+        if result.error: return result
+
+        context.symbol_table.set(variable_name, value)
+        return(result.success(value))
 
 #endregion
 
@@ -605,9 +856,11 @@ def generate_ast(tokens: list[Token]) -> ParseResult:
 def interpret_ast(ast: Node):
     interpreter = Interpreter()
     context = Context('Program')
-    result = interpreter.visit(ast.node, context)
+    context.symbol_table = global_symbol_table
 
+    result = interpreter.visit(ast.node, context)
     return result
+
 
 def run(file_name, text):
     tokens, error = make_tokens(file_name, text)
