@@ -6,6 +6,9 @@ while True:
 
     try:
         text = input('RUNTIME > ')
+
+        if text.strip() == '':
+            continue
     except KeyboardInterrupt:
         exit(0)
 
@@ -21,4 +24,8 @@ while True:
     result, error = runtime.run(file_name, text)
 
     if error: print(error)
-    else: print(result)
+    else: 
+        if len(result.elements) == 1:
+            print(result.elements[0])
+        else:
+            print(result)

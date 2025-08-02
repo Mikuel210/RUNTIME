@@ -74,6 +74,10 @@ class InvalidSyntaxError(Error):
     def __init__(self, start_position, end_position, details):
         super().__init__(start_position, end_position, 'Invalid Syntax', details)
 
+class ExpectedCharacterError(Error):
+    def __init__(self, start_position, end_position, details):
+        super().__init__(start_position, end_position, 'Expected Character', details)
+
 class RuntimeError(Error):
     def __init__(self, start_position, end_position, details, context):
         super().__init__(start_position, end_position, 'Runtime Error', details)
@@ -140,8 +144,10 @@ TT_MULIPLY = "MULTIPLY"
 TT_DIVIDE = "DIVIDE"
 TT_POWER = "POWER"
 
-## Strings
-TT_QUOTE = "QUOTE"
+## Text
+TT_TEXT = "TEXT"
+
+## Lists
 TT_OPEN_BRACKETS = "OPEN_BRACKETS"
 TT_CLOSE_BRACKETS = "CLOSE_BRACKETS"
 
@@ -153,6 +159,15 @@ TT_GREATER_THAN = "GREATER_THAN"
 TT_LESS_THAN_OR_EQUALS = "LESS_THAN_OR_EQUALS"
 TT_GREATER_THAN_OR_EQUALS = "GREATER_THAN_OR_EQUALS"
 
+COMPARAISON_TOKEN_TYPES = (
+    TT_DOUBLE_EQUALS,
+    TT_NOT_EQUALS,
+    TT_LESS_THAN,
+    TT_GREATER_THAN,
+    TT_LESS_THAN_OR_EQUALS,
+    TT_GREATER_THAN_OR_EQUALS
+)
+
 ## Variables
 TT_VARIABLE = "VARIABLE"
 TT_IDENTIFIER = "IDENTIFIER"
@@ -163,9 +178,11 @@ TT_KEYWORD = "KEYWORD"
 
 KEYWORDS = ['if', 'unless', 'and', 'or', 'not']
 
+TT_COMMA = "COMMA"
 TT_OPEN_PARENTHESIS = "OPEN_PARENTHESIS"
 TT_CLOSE_PARENTHESIS = "CLOSE_PARENTHESIS"
 
+TT_NEW_LINE = "NEW_LINE"
 TT_EOF = "EOF"
 
 class Token:
@@ -214,14 +231,23 @@ class Lexer:
         tokens = []
 
         while self.current_character != None:
+            ## General
             if self.current_character in ' \t':
                 pass
+            elif self.current_character in ';\n':
+                tokens.append(Token(TT_NEW_LINE, start_position = self.position))
             elif self.current_character in DIGITS:
                 tokens.append(self.make_number())
                 continue
             elif self.current_character in LETTERS:
                 tokens.append(self.make_identifier())
                 continue
+            elif self.current_character == ',':
+                tokens.append(Token(TT_COMMA, start_position = self.position))
+            elif self.current_character == '(':
+                tokens.append(Token(TT_OPEN_PARENTHESIS, start_position = self.position))
+            elif self.current_character == ')':
+                tokens.append(Token(TT_CLOSE_PARENTHESIS, start_position = self.position))
             
             ## Math expressions
             elif self.current_character == '+':
@@ -235,42 +261,42 @@ class Lexer:
             elif self.current_character == '^':
                 tokens.append(Token(TT_POWER, start_position = self.position))
 
-            ## Strings
-            elif self.current_character == '"':
-                tokens.append(Token(TT_QUOTE, start_position = self.position))
-            elif self.current_character == '{':
-                tokens.append(Token(TT_OPEN_BRACKETS, start_position = self.position))
-            elif self.current_character == '}':
-                tokens.append(Token(TT_CLOSE_BRACKETS, start_position = self.position))
-
-            ## Comparisons
-            elif self.current_character == '==':
-                tokens.append(Token(TT_DOUBLE_EQUALS, start_position = self.position))
-            elif self.current_character == '!=':
-                token, error = self.make_not_equals()
-                
+            ## Text
+            elif self.current_character in '"{}':
+                token, error = self.make_text()
                 if error: return [], error
+
                 tokens.append(token)
+                continue
+
+            ## Lists
+            elif self.current_character == '[':
+                tokens.append(Token(TT_OPEN_BRACKETS, start_position = self.position))
+            elif self.current_character == ']':
+                tokens.append(Token(TT_CLOSE_BRACKETS, start_position = self.position))
+            
+            ## Comparisons
+            elif self.current_character == '=':
+                tokens.append(self.make_equals())
+                continue
+            elif self.current_character == '!':
+                token, error = self.make_not_equals()
+                if error: return [], error
+
+                tokens.append(token)
+                continue
             elif self.current_character == '<':
-                tokens.append(Token(TT_CLOSE_BRACKETS, start_position = self.position))
+                tokens.append(self.make_less_than())
+                continue
             elif self.current_character == '>':
-                tokens.append(Token(TT_CLOSE_BRACKETS, start_position = self.position))
-            elif self.current_character == '<=':
-                tokens.append(Token(TT_CLOSE_BRACKETS, start_position = self.position))
-            elif self.current_character == '>=':
-                tokens.append(Token(TT_CLOSE_BRACKETS, start_position = self.position))
+                tokens.append(self.make_greater_than())
+                continue
 
             ## Variables
             elif self.current_character == '$':
                 tokens.append(Token(TT_VARIABLE, start_position = self.position))
-            elif self.current_character == '=':
-                tokens.append(Token(TT_EQUALS, start_position = self.position))
 
-            ## General
-            elif self.current_character == '(':
-                tokens.append(Token(TT_OPEN_PARENTHESIS, start_position = self.position))
-            elif self.current_character == ')':
-                tokens.append(Token(TT_CLOSE_PARENTHESIS, start_position = self.position))
+            ##
 
             else:
                 character = self.current_character
@@ -304,6 +330,59 @@ class Lexer:
 
         return Token(TT_NUMBER, float(number_string), start_position, self.position.copy())
     
+    def make_text(self):
+        text = ''
+        start_position = self.position.copy()
+
+        symbol = self.current_character
+        self.advance()
+
+        if symbol == '"':
+            while self.current_character != None and not self.current_character == symbol:
+                text += self.current_character
+                self.advance()
+
+            if self.current_character == symbol:
+                self.advance()
+
+                return Token(TT_TEXT, text, start_position, self.position.copy()), None
+            
+            return None, ExpectedCharacterError(
+                start_position, self.position,
+                "'\"'"
+            )
+        
+        bracket_count = 1
+
+        while True:
+            character = self.current_character
+
+            if character == '{':
+                bracket_count += 1
+            if character == '}':
+                bracket_count -= 1
+
+            if bracket_count == 0:
+                self.advance()
+
+                return Token(TT_TEXT, text, start_position, self.position.copy()), None
+
+            if not character is None:
+                text += character
+            else:
+                if bracket_count == 1:
+                    return None, ExpectedCharacterError(
+                        start_position, self.position,
+                        "'}'"
+                    )
+                else:
+                    return None, InvalidSyntaxError(
+                        start_position, self.position,
+                        "Unterminated text literal"
+                    )
+                
+            self.advance()
+    
     def make_identifier(self):
         identifier_string = ''
         start_position = self.position.copy()
@@ -314,6 +393,53 @@ class Lexer:
 
         token_type = TT_KEYWORD if identifier_string in KEYWORDS else TT_IDENTIFIER
         return Token(token_type, identifier_string, start_position, self.position)
+    
+    def make_not_equals(self):
+        start_position = self.position.copy()
+        self.advance()
+
+        if self.current_character == '=':
+            self.advance()
+            return Token(TT_NOT_EQUALS, start_position = start_position, end_position = self.position), None
+        
+        self.advance()
+        return None, ExpectedCharacterError(start_position, self.position, "'=' after '!'")
+    
+    def make_equals(self):
+        token_type = TT_EQUALS
+        start_position = self.position.copy()
+
+        self.advance()
+
+        if self.current_character == '=':
+            self.advance()
+            token_type = TT_DOUBLE_EQUALS
+
+        return Token(token_type, start_position = start_position, end_position = self.position)
+    
+    def make_less_than(self):
+        token_type = TT_LESS_THAN
+        start_position = self.position.copy()
+        
+        self.advance()
+
+        if self.current_character == '=':
+            self.advance()
+            token_type = TT_LESS_THAN_OR_EQUALS
+
+        return Token(token_type, start_position = start_position, end_position = self.position)
+    
+    def make_greater_than(self):
+        token_type = TT_GREATER_THAN
+        start_position = self.position.copy()
+        
+        self.advance()
+
+        if self.current_character == '=':
+            self.advance()
+            token_type = TT_GREATER_THAN_OR_EQUALS
+
+        return Token(token_type, start_position = start_position, end_position = self.position)
         
 #endregion
 
@@ -325,16 +451,17 @@ class Node:
         self.start_position = start_position
         self.end_position = end_position
 
-## Math Expressions
+    def __repr__(self):
+        return f'({self.token})'
+
+## Numbers
 
 class NumberNode(Node):
     def __init__(self, token: Token):
         super().__init__(token.start_position, token.end_position)
-        
         self.token = token
 
-    def __repr__(self):
-        return f'({self.token})'
+## Expressions
 
 class BinaryOperationNode(Node):
     def __init__(self, left_node: Node, operator_token: Token, right_node: Node):
@@ -357,6 +484,38 @@ class UnaryOperationNode(Node):
     def __repr__(self) -> str:
         return f'({self.operation_token}, {self.node})'
     
+## Text
+
+class TextNode(Node):
+    def __init__(self, token: Token):
+        super().__init__(token.start_position, token.end_position)
+        self.token = token
+
+class CallNode(Node):
+    def __init__(self, node_to_call: Node, argument_nodes: list[Node]):
+        super().__init__(node_to_call.start_position, node_to_call.end_position)
+
+        self.node_to_call = node_to_call
+        self.argument_nodes = argument_nodes
+
+        if (len(argument_nodes) > 0):
+            self.end_position = argument_nodes[len(argument_nodes) - 1].end_position
+
+
+## Lists
+
+class ListNode(Node):
+    def __init__(self, element_nodes: list[Node], start_position: Position, end_position: Position):
+        super().__init__(start_position, end_position)
+        self.element_nodes = element_nodes
+
+class IndexingNode(Node):
+    def __init__(self, base_node: Node, index_node: Node):
+        super().__init__(base_node.start_position, index_node.end_position)
+
+        self.base_node = base_node
+        self.index_node = index_node
+
 ## Variables
 
 class VariableNameNode(Node):
@@ -364,7 +523,7 @@ class VariableNameNode(Node):
         super().__init__(variable_name_token.start_position, variable_name_token.end_position)
 
         self.variable_name_token = variable_name_token
-        self.variable_name_string = String(variable_name_token.value)
+        self.variable_name_text = Text(variable_name_token.value)
 
 class VariableAccessNode(Node):
     def __init__(self, variable_name_node):
@@ -388,6 +547,7 @@ class ParseResult:
         self.error = None
         self.node = None
         self.advance_count = 0
+        self.to_reverse_count = 0
 
     def register_advancement(self):
         self.advance_count += 1
@@ -397,6 +557,13 @@ class ParseResult:
 
         if result.error: self.error = result.error
         return result.node
+    
+    def try_register(self, result):
+        if result.error:
+            self.to_reverse_count = result.advance_count
+            return None
+        
+        return self.register(result)
     
     def success(self, node):
         self.node = node
@@ -428,8 +595,14 @@ class Parser:
 
         return self.current_token
     
+    def reverse(self, amount = 1):
+        self.current_token_index -= amount
+        self.solve_current_token()
+
+        return self.current_token
+    
     def parse(self):
-        result = self.expression()
+        result = self.statements()
         token = self.current_token
 
         if not result.error and token.type != TT_EOF:
@@ -486,6 +659,12 @@ class Parser:
             self.advance()
 
             return result.success(NumberNode(token))
+        
+        elif token.type == TT_TEXT:
+            result.register_advancement()
+            self.advance()
+
+            return result.success(TextNode(token))
 
         elif token.type == TT_OPEN_PARENTHESIS:
             result.register_advancement()
@@ -507,6 +686,12 @@ class Parser:
                     "Expected ')'"
                 ))
             
+        elif token.type == TT_OPEN_BRACKETS:
+            list_expression = result.register(self.list_expression())
+            
+            if result.error: return result
+            return result.success(list_expression)
+            
         variable = self.variable()
 
         if not variable.error:
@@ -515,11 +700,133 @@ class Parser:
         return result.failure(InvalidSyntaxError(
             token.start_position, 
             token.end_position, 
-            "Expected a number, a variable, '+', '-', or '('"
+            "Expected a number, a variable, '+', '-', '(' or '['"
         ))
 
+    def list_expression(self):
+        result = ParseResult()
+        element_nodes = []
+        token = self.current_token
+
+        start_position = self.current_token.start_position.copy()
+
+        if token.type != TT_OPEN_BRACKETS:
+            return result.failure(InvalidSyntaxError(
+                start_position, self.current_token.end_position,
+                "Expected '['"
+            ))
+        
+        result.register_advancement()
+        self.advance()
+
+        token = self.current_token
+
+        if token.type == TT_CLOSE_BRACKETS:
+            result.register_advancement()
+            self.advance()
+        else:
+            element_nodes.append(result.register(self.expression()))
+
+            if result.error:
+                return result.failure(InvalidSyntaxError(
+                    self.current_token.start_position, self.current_token.end_position,
+                    "Expected ']', '$', number, identifier, '+', '-', or '('"
+                ))
+            
+            while self.current_token.type == TT_COMMA:
+                result.register_advancement()
+                self.advance()
+
+                element_nodes.append(result.register(self.expression()))
+                if result.error: return result
+
+            if self.current_token.type != TT_CLOSE_BRACKETS:
+                return result.failure(InvalidSyntaxError(
+                    self.current_token.start_position, self.current_token.end_position,
+                    "Expected ',' or ']'"
+                ))
+            
+            result.register_advancement()
+            self.advance()
+
+        return result.success(ListNode(
+            element_nodes,
+            start_position,
+            self.current_token.end_position.copy()
+        ))
+    
+    def index(self):
+        result = ParseResult()
+
+        atom = result.register(self.atom())
+        if result.error: return result
+
+        if self.current_token.type == TT_OPEN_BRACKETS:
+            result.register_advancement()
+            self.advance()
+
+            index = result.register(self.expression())
+            if result.error: return result
+
+            if self.current_token.type != TT_CLOSE_BRACKETS:
+                return result.failure(InvalidSyntaxError(
+                    self.current_token.start_position, self.current_token.end_position,
+                    "Expected ']'"
+                ))
+            
+            result.register_advancement()
+            self.advance()
+            
+            return result.success(IndexingNode(atom, index))
+        
+        return result.success(atom)
+    
+    def call(self):
+        result = ParseResult()
+
+        index = result.register(self.index())
+        if result.error: return result
+
+        if self.current_token.type == TT_OPEN_PARENTHESIS:
+            result.register_advancement()
+            self.advance()
+
+            argument_nodes = []
+
+            if self.current_token.type == TT_CLOSE_PARENTHESIS:
+                result.register_advancement()
+                self.advance()
+            else:
+                argument_nodes.append(result.register(self.expression()))
+
+                if result.error:
+                    return result.failure(InvalidSyntaxError(
+                        self.current_token.start_position, self.current_token.end_position,
+                        "Expected ')', '$', number, identifier, '+', '-', '(' or '['"
+                    ))
+                
+                while self.current_token.type == TT_COMMA:
+                    result.register_advancement()
+                    self.advance()
+
+                    argument_nodes.append(result.register(self.expression))
+                    if result.error: return result
+
+                if self.current_token.type != TT_CLOSE_PARENTHESIS:
+                    return result.failure(InvalidSyntaxError(
+                        self.current_token.start_position, self.current_token.end_position,
+                        "Expected ',' or ')'"
+                    ))
+                
+                result.register_advancement()
+                self.advance()
+
+            return result.success(CallNode(index, argument_nodes))
+        
+        return result.success(index)
+
     def power(self):
-        return self.binary_operation(self.atom, (TT_POWER, ), self.factor)
+        return self.binary_operation(self.call, (TT_POWER, ), self.factor)
 
     def factor(self):
         result = ParseResult()
@@ -538,6 +845,35 @@ class Parser:
 
     def term(self):
         return self.binary_operation(self.factor, (TT_MULIPLY, TT_DIVIDE))
+    
+    def arithmetic_expression(self):
+        return self.binary_operation(self.term, (TT_ADD, TT_SUBTRACT))
+    
+    def comparaison_expression(self):
+        result = ParseResult()
+        token = self.current_token
+
+        if token.matches(TT_KEYWORD, 'not'):
+            operation_token = self.current_token
+            
+            result.register_advancement()
+            self.advance()
+
+            node = result.register(self.comparaison_expression())
+
+            if result.error: return result
+            return result.success(UnaryOperationNode(operation_token, node))
+        
+        node = result.register(self.binary_operation(self.arithmetic_expression, COMPARAISON_TOKEN_TYPES))
+        token = self.current_token
+
+        if result.error:
+            return result.failure(InvalidSyntaxError(
+                token.start_position, token.end_position,
+                "Expected a number, a variable, '+', '-', '(', '[' or 'not'"
+            ))
+        
+        return result.success(node)
 
     def expression(self):
         result = ParseResult()
@@ -560,15 +896,62 @@ class Parser:
         self.current_token_index = starting_index
         self.solve_current_token()
 
-        node = result.register(self.binary_operation(self.term, (TT_ADD, TT_SUBTRACT)))
+        node = result.register(self.binary_operation(self.comparaison_expression, ((TT_KEYWORD, 'and'), (TT_KEYWORD, 'or'))))
 
         if result.error: 
             return result.failure(InvalidSyntaxError(
                 self.current_token.start_position, self.current_token.end_position,
-                "Expected '$', number, identifier, '+', '-', or '('"
+                "Expected '$', number, identifier, '+', '-', '(' or '['"
             ))
         
         return result.success(node)
+    
+    def statements(self):
+        result = ParseResult()
+        statements = []
+
+        start_position = self.current_token.start_position.copy()
+
+        while self.current_token.type == TT_NEW_LINE:
+            result.register_advancement()
+            self.advance()
+
+        statement = result.register(self.expression())
+        if result.error: return result
+
+        statements.append(statement)
+
+        more_statements = True
+
+        while True:
+            new_line_count = 0
+
+            while self.current_token.type == TT_NEW_LINE:
+                result.register_advancement()
+                self.advance()
+
+                new_line_count += 1
+
+            if new_line_count == 0:
+                more_statements = False
+
+            if not more_statements: break
+
+            statement = result.try_register(self.expression())
+
+            if not statement:
+                self.reverse(result.to_reverse_count)
+
+                more_statements = False
+                continue
+
+            statements.append(statement)
+
+        return result.success(ListNode(
+            statements,
+            start_position,
+            self.current_token.start_position.copy()
+        ))
     
     def binary_operation(self, left_function, operation_tokens: tuple, right_function = None):
         result = ParseResult()
@@ -576,7 +959,7 @@ class Parser:
 
         if result.error: return result
 
-        while self.current_token.type in operation_tokens:
+        while (self.current_token.type in operation_tokens) or (self.current_token.type, self.current_token.value) in operation_tokens:
             token = self.current_token
             result.register_advancement()
             self.advance()
@@ -613,11 +996,10 @@ class RuntimeResult:
 
 #endregion
 
-#region RUNTIME OBJECTS
+#region VALUES
 
-class RuntimeObject(ABC):
-    def __init__(self, value):
-        self.value = value
+class Value(ABC):
+    def __init__(self):
         self.set_position()
         self.set_context()
 
@@ -633,6 +1015,18 @@ class RuntimeObject(ABC):
     
     @abstractmethod
     def copy(self):
+        pass
+
+    ## Execute
+
+    @abstractmethod
+    def execute(self, arguments: list[object]) -> RuntimeResult:
+        pass
+
+    ## Index
+
+    @abstractmethod
+    def index(self, other) -> RuntimeResult:
         pass
     
     ## Binary Operations
@@ -657,9 +1051,97 @@ class RuntimeObject(ABC):
     def powered_by(self, other) -> tuple[object | None, RuntimeError | None]:
         pass
 
-class Number(RuntimeObject):
+    ## Comparaisons
+
+    @abstractmethod
+    def is_equals_to(self, other) -> tuple[object | None, RuntimeError | None]:
+        pass
+    
+    @abstractmethod
+    def is_not_equals_to(self, other) -> tuple[object | None, RuntimeError | None]:
+        is_equals, error = self.is_equals_to(other)
+        if error: return None, error
+
+        return is_equals.not_()
+
+    @abstractmethod
+    def is_greater_than(self, other) -> tuple[object | None, RuntimeError | None]:
+        pass
+
+    @abstractmethod
+    def is_less_than(self, other) -> tuple[object | None, RuntimeError | None]:
+        pass
+
+    @abstractmethod
+    def is_greater_than_or_equals(self, other) -> tuple[object | None, RuntimeError | None]:
+        is_greater, error = self.is_greater_than(other)
+        if error: return None, error
+
+        is_equals, error = self.is_equals_to(other)
+        if error: return None, error
+
+        return is_greater.or_(is_equals)
+
+    @abstractmethod
+    def is_less_than_or_equals(self, other) -> tuple[object | None, RuntimeError | None]:
+        is_less, error = self.is_less_than(other)
+        if error: return None, error
+
+        is_equals, error = self.is_equals_to(other)
+        if error: return None, error
+
+        return is_less.or_(is_equals)
+
+    ## Logical operators
+
+    @abstractmethod
+    def and_(self, other) -> tuple[object | None, RuntimeError | None]:
+        self_boolean, error = self.to_boolean()
+        if error: return None, error
+
+        other_boolean, error = other.to_boolean()
+        if error: return None, error
+
+        if self_boolean.value and other_boolean.value:
+            return Number(1), None
+        else:
+            return Number(0), None
+    
+    @abstractmethod
+    def or_(self, other) -> tuple[object | None, RuntimeError | None]:
+        self_boolean, error = self.to_boolean()
+        if error: return None, error
+
+        other_boolean, error = other.to_boolean()
+        if error: return None, error
+
+        if self_boolean.value or other_boolean.value:
+            return Number(1), None
+        else:
+            return Number(0), None
+
+    @abstractmethod
+    def not_(self) -> tuple[object | None, RuntimeError | None]:
+        boolean, error = self.to_boolean()
+
+        if error: return None, error
+
+        if boolean.value == 1:
+            return Number(0), None
+        else:
+            return Number(1), None
+
+    ## Conversion
+
+    @abstractmethod
+    def to_boolean(self) -> tuple[object | None, RuntimeError | None]:
+        pass
+
+
+class Number(Value):
     def __init__(self, value: float):
-        super().__init__(value)
+        super().__init__()
+        self.value = float(value)
 
     def set_position(self, start_position = None, end_position = None):
         return super().set_position(start_position, end_position)
@@ -674,11 +1156,36 @@ class Number(RuntimeObject):
 
         return copy
     
+    def __repr__(self) -> str:
+        return str(self.value)
+    
+    ## Execute
+
+    def execute(self, arguments: list[Value]) -> RuntimeResult:
+        return RuntimeResult().failure(RuntimeError(
+            self.start_position, self.end_position,
+            f"An object of type {__class__.__name__} can't be executed",
+            self.context
+        ))
+    
+    ## Index
+
+    def index(self, other: Value) -> RuntimeResult:
+        return RuntimeResult().failure(RuntimeError(
+            self.start_position, other.end_position,
+            f"An object of type {__class__.__name__} can't be indexed with an object of type {type(other).__name__}",
+            self.context
+        ))
+    
     ## Binary Operations
 
-    def added_to(self, other: RuntimeObject) -> tuple[RuntimeObject | None, RuntimeError | None]:
+    def added_to(self, other: Value) -> tuple[Value | None, RuntimeError | None]:
         if isinstance(other, Number):
             return Number(self.value + other.value)\
+                .set_context(self.context)\
+                .set_position(self.start_position, other.end_position), None
+        elif isinstance(other, Text):
+            return Text(str(self.value) + other.value)\
                 .set_context(self.context)\
                 .set_position(self.start_position, other.end_position), None
         
@@ -688,7 +1195,7 @@ class Number(RuntimeObject):
             self.context
         ))
         
-    def subtracted_by(self, other: RuntimeObject) -> tuple[RuntimeObject | None, RuntimeError | None]:
+    def subtracted_by(self, other: Value) -> tuple[Value | None, RuntimeError | None]:
         if isinstance(other, Number):
             return Number(self.value - other.value)\
                 .set_context(self.context)\
@@ -700,7 +1207,7 @@ class Number(RuntimeObject):
             self.context
         ))
         
-    def multiplied_by(self, other: RuntimeObject) -> tuple[RuntimeObject | None, RuntimeError | None]:
+    def multiplied_by(self, other: Value) -> tuple[Value | None, RuntimeError | None]:
         if isinstance(other, Number):
             return Number(self.value * other.value)\
                 .set_context(self.context)\
@@ -712,7 +1219,7 @@ class Number(RuntimeObject):
             self.context
         ))
         
-    def divided_by(self, other: RuntimeObject) -> tuple[RuntimeObject | None, RuntimeError | None]:
+    def divided_by(self, other: Value) -> tuple[Value | None, RuntimeError | None]:
         if isinstance(other, Number):
             if other.value == 0:
                 return None, RuntimeError(
@@ -732,7 +1239,7 @@ class Number(RuntimeObject):
             self.context
         ))
 
-    def powered_by(self, other: RuntimeObject) -> tuple[RuntimeObject | None, RuntimeError | None]:
+    def powered_by(self, other: Value) -> tuple[Value | None, RuntimeError | None]:
         if isinstance(other, Number):
             return Number(self.value ** other.value)\
                 .set_context(self.context)\
@@ -743,13 +1250,76 @@ class Number(RuntimeObject):
             f"An object of type {__class__.__name__} can't be raised to the power of an object of type {type(other).__name__}",
             self.context
         ))
-
-    def __repr__(self) -> str:
-        return str(self.value)
     
-class String(RuntimeObject):
+    ## Comparaisons
+
+    def is_equals_to(self, other) -> tuple[Value | None, RuntimeError | None]:
+        if isinstance(other, Number):
+            return Number(self.value == other.value)\
+                .set_context(self.context)\
+                .set_position(self.start_position, other.end_position), None
+
+        return Number(0)\
+            .set_context(self.context)\
+            .set_position(self.start_position, other.end_position), None
+    
+    def is_not_equals_to(self, other) -> tuple[Value | None, RuntimeError | None]:
+        return super().is_not_equals_to(other)
+
+    def is_greater_than(self, other) -> tuple[Value | None, RuntimeError | None]:
+        if isinstance(other, Number):
+            return Number(self.value > other.value)\
+                .set_context(self.context)\
+                .set_position(self.start_position, other.end_position), None
+
+        return (None, RuntimeError(
+            self.start_position, other.end_position,
+            f"An object of type {__class__.__name__} can't be compared with an object of type {type(other).__name__} with a '>' or '>=' operator",
+            self.context
+        ))
+
+    def is_less_than(self, other) -> tuple[Value | None, RuntimeError | None]:
+        if isinstance(other, Number):
+            return Number(self.value < other.value)\
+                .set_context(self.context)\
+                .set_position(self.start_position, other.end_position), None
+
+        return (None, RuntimeError(
+            self.start_position, other.end_position,
+            f"An object of type {__class__.__name__} can't be compared with an object of type {type(other).__name__} with a '<' or '<=' operator",
+            self.context
+        ))
+
+    def is_greater_than_or_equals(self, other) -> tuple[Value | None, RuntimeError | None]:
+        return super().is_greater_than_or_equals(other)
+
+    def is_less_than_or_equals(self, other) -> tuple[Value | None, RuntimeError | None]:
+        return super().is_less_than_or_equals(other)
+    
+    ## Logical operators
+
+    def and_(self, other) -> tuple[Value | None, RuntimeError | None]:
+        return super().and_(other)
+    
+    def or_(self, other) -> tuple[Value | None, RuntimeError | None]:
+        return super().or_(other)
+    
+    def not_(self) -> tuple[Value | None, RuntimeError | None]:
+        return super().not_()
+        
+    ## Conversion
+
+    def to_boolean(self) -> tuple[Value | None, RuntimeError | None]:
+        if self.value > 0:
+            return Number(1), None
+        else:
+            return Number(0), None
+
+    
+class Text(Value):
     def __init__(self, value: str):
-        super().__init__(value)
+        super().__init__()
+        self.value = value
 
     def set_position(self, start_position = None, end_position = None):
         return super().set_position(start_position, end_position)
@@ -758,17 +1328,73 @@ class String(RuntimeObject):
         return super().set_context(context)
     
     def copy(self):
-        copy = String(self.value)
+        copy = Text(self.value)
         copy.set_position(self.start_position, self.end_position)
         copy.set_context(self.context)
 
         return copy
     
+    def __repr__(self) -> str:
+        return f'"{self.value}"'
+    
+    ## Execute
+
+    def execute(self, arguments: list[Value]) -> RuntimeResult:
+        result = RuntimeResult()
+
+        new_context = Context('Text', self.context, self.start_position)
+        new_context.symbol_table = SymbolTable(new_context.parent.symbol_table)
+
+        argument_list = List(arguments).set_context(new_context)
+        new_context.symbol_table.set(Text("arguments"), argument_list)
+            
+        value, error = run('Text', self.value, new_context)
+
+        if error:
+            return result.failure(error)
+        else:
+            return_value = value.elements[len(value.elements) - 1]
+            return result.success(return_value)
+
+    ## Index
+
+    def index(self, other: Value) -> RuntimeResult:
+        result = RuntimeResult()
+
+        if isinstance(other, Number):
+            if other.value < 0:
+                return result.failure(RuntimeError(
+                    self.start_position, other.end_position,
+                    f"An object of type {__class__.__name__} can't be indexed by a negative number",
+                    self.context
+                ))
+
+            if not other.value.is_integer():
+                return result.failure(RuntimeError(
+                    self.start_position, other.end_position,
+                    f"An object of type {__class__.__name__} can't be indexed by a decimal number",
+                    self.context
+                ))
+
+            return result.success(Text(self.value[int(other.value)])
+                .set_context(self.context)
+                .set_position(self.start_position, other.end_position))
+
+        return result.failure(RuntimeError(
+            self.start_position, other.end_position,
+            f"An object of type {__class__.__name__} can't be indexed with an object of type {type(other).__name__}",
+            self.context
+        ))
+    
     ## Binary Operations
 
-    def added_to(self, other: RuntimeObject) -> tuple[RuntimeObject | None, RuntimeError | None]:
-        if isinstance(other, String):
-            return String(self.value + other.value)\
+    def added_to(self, other: Value) -> tuple[Value | None, RuntimeError | None]:
+        if isinstance(other, Text):
+            return Text(self.value + other.value)\
+                .set_context(self.context)\
+                .set_position(self.start_position, other.end_position), None
+        elif isinstance(other, Number):
+            return Text(self.value + str(other.value))\
                 .set_context(self.context)\
                 .set_position(self.start_position, other.end_position), None
         
@@ -778,9 +1404,9 @@ class String(RuntimeObject):
             self.context
         ))
         
-    def subtracted_by(self, other: RuntimeObject) -> tuple[RuntimeObject | None, RuntimeError | None]:
-        if isinstance(other, String):
-            return Number(self.value.removesuffix(other.value))\
+    def subtracted_by(self, other: Value) -> tuple[Value | None, RuntimeError | None]:
+        if isinstance(other, Text):
+            return Text(self.value.removesuffix(other.value))\
                 .set_context(self.context)\
                 .set_position(self.start_position, other.end_position), None
 
@@ -790,9 +1416,9 @@ class String(RuntimeObject):
             self.context
         ))
         
-    def multiplied_by(self, other: RuntimeObject) -> tuple[RuntimeObject | None, RuntimeError | None]:
+    def multiplied_by(self, other: Value) -> tuple[Value | None, RuntimeError | None]:
         if isinstance(other, Number):
-            return Number(self.value * other.value)\
+            return Text(self.value * other.value)\
                 .set_context(self.context)\
                 .set_position(self.start_position, other.end_position), None
 
@@ -802,22 +1428,266 @@ class String(RuntimeObject):
             self.context
         ))
         
-    def divided_by(self, other: RuntimeObject) -> tuple[RuntimeObject | None, RuntimeError | None]:
+    def divided_by(self, other: Value) -> tuple[Value | None, RuntimeError | None]:
         return (None, RuntimeError(
             self.start_position, other.end_position,
             f"An object of type {__class__.__name__} can't be multiplied by an object of type {type(other).__name__}",
             self.context
         ))
 
-    def powered_by(self, other: RuntimeObject) -> tuple[RuntimeObject | None, RuntimeError | None]:
+    def powered_by(self, other: Value) -> tuple[Value | None, RuntimeError | None]:
         return (None, RuntimeError(
             self.start_position, other.end_position,
             f"An object of type {__class__.__name__} can't be raised to the power of an object of type {type(other).__name__}",
             self.context
         ))
+    
+    ## Comparaisons
 
+    def is_equals_to(self, other) -> tuple[Number | None, RuntimeError | None]:
+        if isinstance(other, Text):
+            return Number(self.value == other.value)\
+                .set_context(self.context)\
+                .set_position(self.start_position, other.end_position), None
+
+        return Number(0)\
+            .set_context(self.context)\
+            .set_position(self.start_position, other.end_position), None
+    
+    def is_not_equals_to(self, other) -> tuple[Number | None, RuntimeError | None]:
+        return super().is_not_equals_to(other)
+
+    def is_greater_than(self, other) -> tuple[Number | None, RuntimeError | None]:
+        if isinstance(other, Text):
+            return Number(len(self.value) > len(other.value))\
+                .set_context(self.context)\
+                .set_position(self.start_position, other.end_position), None
+
+        return (None, RuntimeError(
+            self.start_position, other.end_position,
+            f"An object of type {__class__.__name__} can't be compared with an object of type {type(other).__name__} with a '>' or '>=' operator",
+            self.context
+        ))
+
+    def is_less_than(self, other) -> tuple[Number | None, RuntimeError | None]:
+        if isinstance(other, Text):
+            return Number(len(self.value) < len(other.value))\
+                .set_context(self.context)\
+                .set_position(self.start_position, other.end_position), None
+
+        return (None, RuntimeError(
+            self.start_position, other.end_position,
+            f"An object of type {__class__.__name__} can't be compared with an object of type {type(other).__name__} with a '<' or '<=' operator",
+            self.context
+        ))
+
+    def is_greater_than_or_equals(self, other) -> tuple[Number | None, RuntimeError | None]:
+        return super().is_greater_than_or_equals(other)
+
+    def is_less_than_or_equals(self, other) -> tuple[Number | None, RuntimeError | None]:
+        return super().is_less_than_or_equals(other)
+    
+    ## Logical operators
+
+    def and_(self, other) -> tuple[Number | None, RuntimeError | None]:
+        return super().and_(other)
+    
+    def or_(self, other) -> tuple[Number | None, RuntimeError | None]:
+        return super().or_(other)
+    
+    def not_(self) -> tuple[Number | None, RuntimeError | None]:
+        return super().not_()
+    
+    ## Conversion
+
+    def to_boolean(self) -> tuple[Number | None, RuntimeError | None]:
+        return Number(not (self.value.strip() == '')), None
+
+
+class List(Value):
+    def __init__(self, elements: list):
+        super().__init__()
+        self.elements = elements
+
+    def set_position(self, start_position = None, end_position = None):
+        return super().set_position(start_position, end_position)
+    
+    def set_context(self, context=None):
+        return super().set_context(context)
+    
+    def copy(self):
+        copy = List(self.elements[:])
+        copy.set_position(self.start_position, self.end_position)
+        copy.set_context(self.context)
+
+        return copy
+    
     def __repr__(self) -> str:
-        return self.value
+        return f"[{', '.join(str(x) for x in self.elements)}]"
+    
+    ## Execute
+
+    def execute(self, arguments: list[Value]) -> tuple[Value | None, RuntimeError | None]:
+        return (None, RuntimeError(
+            self.start_position, self.end_position,
+            f"An object of type {__class__.__name__} can't be executed",
+            self.context
+        ))
+    
+    ## Index
+
+    def index(self, other: Value) -> tuple[Value | None, RuntimeError | None]:
+        result = RuntimeResult()
+
+        if isinstance(other, Number):
+            if other.value < 0:
+                return result.failure(RuntimeError(
+                    self.start_position, other.end_position,
+                    f"An object of type {__class__.__name__} can't be indexed by a negative number",
+                    self.context
+                ))
+
+            if not other.value.is_integer():
+                return result.failure(RuntimeError(
+                    self.start_position, other.end_position,
+                    f"An object of type {__class__.__name__} can't be indexed by a decimal number",
+                    self.context
+                ))
+
+            return result.success(Text(self.elements[int(other.value)])
+                .set_context(self.context)
+                .set_position(self.start_position, other.end_position))
+
+        return result.failure(RuntimeError(
+            self.start_position, other.end_position,
+            f"An object of type {__class__.__name__} can't be indexed with an object of type {type(other).__name__}",
+            self.context
+        ))
+    
+    ## Binary Operations
+
+    def added_to(self, other: Value) -> tuple[Value | None, RuntimeError | None]:
+        new_list = self.copy()
+        
+        if isinstance(other, List):
+            new_list.elements = new_list.elements + other.elements
+        else:
+            new_list.elements.append(other)
+
+        return new_list, None
+        
+    def subtracted_by(self, other: Value) -> tuple[Value | None, RuntimeError | None]:
+        return (None, RuntimeError(
+            self.start_position, other.end_position,
+            f"An object of type {__class__.__name__} can't be subtracted by an object of type {type(other).__name__}",
+            self.context
+        ))
+        
+    def multiplied_by(self, other: Value) -> tuple[Value | None, RuntimeError | None]:
+        if isinstance(other, Number):
+            if other.value < 0:
+                return (None, RuntimeError(
+                    self.start_position, other.end_position,
+                    f"An object of type {__class__.__name__} can't be multiplied by a negative number",
+                    self.context
+                ))
+
+            if not other.value.is_integer():
+                return (None, RuntimeError(
+                    self.start_position, other.end_position,
+                    f"An object of type {__class__.__name__} can't be multiplied by a decimal number",
+                    self.context
+                ))
+            
+            new_list = List([])\
+                .set_position(self.start_position, self.end_position)\
+                .set_context(self.context)
+            
+            for i in range(other.value):
+                new_list = new_list + self.elements
+
+            return new_list, None
+
+        return (None, RuntimeError(
+            self.start_position, other.end_position,
+            f"An object of type {__class__.__name__} can't be multiplied by an object of type {type(other).__name__}",
+            self.context
+        ))
+        
+    def divided_by(self, other: Value) -> tuple[Value | None, RuntimeError | None]:
+        return (None, RuntimeError(
+            self.start_position, other.end_position,
+            f"An object of type {__class__.__name__} can't be multiplied by an object of type {type(other).__name__}",
+            self.context
+        ))
+
+    def powered_by(self, other: Value) -> tuple[Value | None, RuntimeError | None]:
+        return (None, RuntimeError(
+            self.start_position, other.end_position,
+            f"An object of type {__class__.__name__} can't be raised to the power of an object of type {type(other).__name__}",
+            self.context
+        ))
+    
+    ## Comparaisons
+
+    def is_equals_to(self, other) -> tuple[Number | None, RuntimeError | None]:
+        if isinstance(other, list):
+            return Number(self.elements == other.elements)\
+                .set_context(self.context)\
+                .set_position(self.start_position, other.end_position), None
+
+        return Number(0)\
+            .set_context(self.context)\
+            .set_position(self.start_position, other.end_position), None
+    
+    def is_not_equals_to(self, other) -> tuple[Number | None, RuntimeError | None]:
+        return super().is_not_equals_to(other)
+
+    def is_greater_than(self, other) -> tuple[Number | None, RuntimeError | None]:
+        if isinstance(other, list):
+            return Number(len(self.elements) > len(other.elements))\
+                .set_context(self.context)\
+                .set_position(self.start_position, other.end_position), None
+
+        return (None, RuntimeError(
+            self.start_position, other.end_position,
+            f"An object of type {__class__.__name__} can't be compared with an object of type {type(other).__name__} with a '>' or '>=' operator",
+            self.context
+        ))
+
+    def is_less_than(self, other) -> tuple[Number | None, RuntimeError | None]:
+        if isinstance(other, list):
+            return Number(len(self.elements) < len(other.elements))\
+                .set_context(self.context)\
+                .set_position(self.start_position, other.end_position), None
+
+        return (None, RuntimeError(
+            self.start_position, other.end_position,
+            f"An object of type {__class__.__name__} can't be compared with an object of type {type(other).__name__} with a '>' or '>=' operator",
+            self.context
+        ))
+
+    def is_greater_than_or_equals(self, other) -> tuple[Number | None, RuntimeError | None]:
+        return super().is_greater_than_or_equals(other)
+
+    def is_less_than_or_equals(self, other) -> tuple[Number | None, RuntimeError | None]:
+        return super().is_less_than_or_equals(other)
+    
+    ## Logical operators
+
+    def and_(self, other) -> tuple[Number | None, RuntimeError | None]:
+        return super().and_(other)
+    
+    def or_(self, other) -> tuple[Number | None, RuntimeError | None]:
+        return super().or_(other)
+    
+    def not_(self) -> tuple[Number | None, RuntimeError | None]:
+        return super().not_()
+    
+    ## Conversion
+
+    def to_boolean(self) -> tuple[Number | None, RuntimeError | None]:
+        return Number(len(self.elements) > 0), None
 
 #endregion
 
@@ -835,11 +1705,11 @@ class Context:
 #region SYMBOL TABLE
 
 class SymbolTable:
-    def __init__(self):
+    def __init__(self, parent = None):
         self.symbols = {}
-        self.parent = None
+        self.parent = parent
 
-    def get(self, key: RuntimeObject):
+    def get(self, key: Value):
         value = self.symbols.get(key.value, None)
 
         if value is None and isinstance(self.parent, SymbolTable):
@@ -847,15 +1717,11 @@ class SymbolTable:
         
         return value
     
-    def set(self, key: RuntimeObject, value: RuntimeObject):
+    def set(self, key: Value, value: Value):
         self.symbols[key.value] = value
 
-    def remove(self, key: RuntimeObject):
+    def remove(self, key: Value):
         del self.symbols[key.value]
-
-global_symbol_table = SymbolTable()
-global_symbol_table.set(String('true'), Number(1))
-global_symbol_table.set(String('false'), Number(0))
 
 #endregion
 
@@ -879,6 +1745,27 @@ class Interpreter():
                 .set_context(context)
                 .set_position(node.start_position, node.end_position)
         )
+    
+    def visit_TextNode(self, node: TextNode, context: Context):
+        return RuntimeResult().success(
+            Text(node.token.value)
+                .set_context(context)
+                .set_position(node.start_position, node.end_position)
+        )
+    
+    def visit_ListNode(self, node: ListNode, context: Context):
+        result = RuntimeResult()
+        elements = []
+
+        for element_node in node.element_nodes:
+            elements.append(result.register(self.visit(element_node, context)))
+            if result.error: return result
+
+        return result.success(
+            List(elements)\
+                .set_position(node.start_position, node.end_position)\
+                .set_context(context)
+        )
 
     def visit_BinaryOperationNode(self, node: BinaryOperationNode, context: Context):
         result = RuntimeResult()
@@ -889,6 +1776,7 @@ class Interpreter():
         right = result.register(self.visit(node.right_node, context))
         if result.error: return result
 
+        ## Arithmetic expressions
         if node.operator_token.type == TT_ADD:
             output, error = left.added_to(right)
         elif node.operator_token.type == TT_SUBTRACT:
@@ -899,6 +1787,26 @@ class Interpreter():
             output, error = left.divided_by(right)
         elif node.operator_token.type == TT_POWER:
             output, error = left.powered_by(right)
+
+        ## Comparaison expressions
+        elif node.operator_token.type == TT_DOUBLE_EQUALS:
+            output, error = left.is_equals_to(right)
+        elif node.operator_token.type == TT_NOT_EQUALS:
+            output, error = left.is_not_equals_to(right)
+        elif node.operator_token.type == TT_GREATER_THAN:
+            output, error = left.is_greater_than(right)
+        elif node.operator_token.type == TT_LESS_THAN:
+            output, error = left.is_less_than(right)
+        elif node.operator_token.type == TT_GREATER_THAN_OR_EQUALS:
+            output, error = left.is_greater_than_or_equals(right)
+        elif node.operator_token.type == TT_LESS_THAN_OR_EQUALS:
+            output, error = left.is_less_than_or_equals(right)
+
+        ## Logical operators
+        elif node.operator_token.matches(TT_KEYWORD, 'and'):
+            output, error = left.and_(right)
+        elif node.operator_token.matches(TT_KEYWORD, 'or'):
+            output, error = left.or_(right)
 
         if error: return result.failure(error) # type: ignore
         
@@ -915,6 +1823,8 @@ class Interpreter():
 
         if node.operation_token.type == TT_SUBTRACT:
             number, error = number.multiplied_by(Number(-1))
+        elif node.operation_token.matches(TT_KEYWORD, 'not'):
+            number, error = number.not_()
         
         if error: return result.failure(error) # type: ignore
         
@@ -925,7 +1835,7 @@ class Interpreter():
     
     def visit_VariableNameNode(self, node: VariableNameNode, context: Context):
         result = RuntimeResult()
-        return result.success(node.variable_name_string)
+        return result.success(node.variable_name_text)
     
     def visit_VariableAccessNode(self, node: VariableAccessNode, context: Context):
         result = RuntimeResult()
@@ -951,10 +1861,53 @@ class Interpreter():
 
         context.symbol_table.set(variable_name, value)
         return(result.success(value))
+    
+    def visit_CallNode(self, node: CallNode, context: Context):
+        result = RuntimeResult()
+        arguments = []
+
+        value_to_call = result.register(self.visit(node.node_to_call, context))
+        if result.error: return result
+
+        value_to_call = value_to_call.copy().set_position(node.start_position, node.end_position)
+
+        for argument_node in node.argument_nodes:
+            arguments.append(result.register(self.visit(argument_node, context)))
+            if result.error: return result
+
+        return_value = result.register(value_to_call.execute(arguments))
+        if result.error: return result
+
+        return result.success(return_value)
+    
+    def visit_IndexingNode(self, node: IndexingNode, context: Context):
+        result = RuntimeResult()
+
+        base_value = result.register(self.visit(node.base_node, context))
+        if result.error: return result
+
+        index_value = result.register(self.visit(node.index_node, context))
+        if result.error: return result
+
+        value = result.register(base_value.index(index_value))
+        if result.error: return result
+        
+        return result.success(value)
 
 #endregion
 
 #region RUN
+
+## Default Context
+
+global_context = Context('Program')
+global_symbol_table = SymbolTable()
+global_context.symbol_table = global_symbol_table
+
+global_symbol_table.set(Text('true'), Number(1))
+global_symbol_table.set(Text('false'), Number(0))
+
+## Functions
 
 def make_tokens(file_name: str, text: str) -> list[Token]:
     lexer = Lexer(file_name, text)
@@ -968,23 +1921,21 @@ def generate_ast(tokens: list[Token]) -> ParseResult:
 
     return ast
 
-def interpret_ast(ast: Node):
+def interpret_ast(ast: Node, context: Context = global_context):
     interpreter = Interpreter()
-    context = Context('Program')
-    context.symbol_table = global_symbol_table
 
-    result = interpreter.visit(ast.node, context)
+    result = interpreter.visit(ast.node, context if context else global_context)
     return result
 
 
-def run(file_name, text):
+def run(file_name, text, context: Context = global_context):
     tokens, error = make_tokens(file_name, text)
     if error: return None, error
 
     ast = generate_ast(tokens)
     if ast.error: return None, ast.error
 
-    result = interpret_ast(ast)
+    result = interpret_ast(ast, context)
     return result.value, result.error
 
 #endregion
