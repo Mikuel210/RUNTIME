@@ -22,8 +22,8 @@ GTE = GREATER THAN OR EQUALS
 
 -   **ArithmeticExpression**: Term ((ADD|SUBTRACT) Term)*
 
--   **Variable**: VARIABLE (IDENTIFIER|KEYWORD|Expression)
-                : IDENTIFIER
+-   **Variable**: (LT Expression GT)? VARIABLE (IDENTIFIER|KEYWORD|Atom)
+                : (LT Expression GT)? IDENTIFIER
 
 -   **Term**: Factor ((MULTIPLY|DIVIDE) Factor)*
 
