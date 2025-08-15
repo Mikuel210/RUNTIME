@@ -1,0 +1,11 @@
+print("Hello world")
+
+print = {
+    BuiltIn("print")("WHAHAAHA: " + arguments[0])
+}
+
+print("Hello world")
+
+print = BuiltIn("print")
+
+print("Hello world")

@@ -1,0 +1,35 @@
+if = {
+    branches = [arguments[1], arguments[2]]
+    condition = Boolean(arguments[0])
+
+    branches[condition]()
+}
+
+while = {
+    condition = Boolean(arguments[0]())
+
+    if(condition, arguments[1], arguments[2])
+}
+
+prompt_if = {
+    condition = Number(input("Say 0 or 1: "))
+    print(if(condition, { "You said 0" }, { "You said 1" }))
+}
+
+prompt_while = {
+    condition = input("Enter a condition: ")
+    start = input("Enter a starting code: ")
+    loop = input("Enter a looping code: ")
+    end = input("Enter an ending code: ")
+
+    start()
+
+    while(condition, end, loop)
+}
+
+prompt = {
+    $("prompt_" + input("Enter an example to run (if/while): "))()
+    { prompt() }()
+}
+
+prompt()

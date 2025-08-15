@@ -1,0 +1,11 @@
+condition_text = input("Enter a condition: ")
+
+output_list = [{
+    print("Your condition is false")
+    },{
+        print("Your condition is true")
+    }]
+
+result = condition_text()
+
+output_list[result]()

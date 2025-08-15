@@ -30,14 +30,15 @@ GTE = GREATER THAN OR EQUALS
 -   **Factor**: (ADD|SUBTRACT) Factor
               : Power
 
--   **Power**: Call (POWER Factor)
+-   **Power**: Atom (POWER Factor)
 
--   **Call**: Index (OPEN_PARENTHESIS (Expression (COMMA Expression)*)? CLOSE_PARENTHESIS)?
+-   **Atom**: BaseAtom (Postfix)*
 
--   **Index**: Atom (OPEN_BRACKETS Expression CLOSE_BRACKETS)?
-
--   **Atom**: Variable | Number | String
+-   **BaseAtom**: Variable | Number | String
             : OPEN_PARENTHESIS Expression CLOSE_PARENTHESIS
             : ListExpression
 
 -   **ListExpression**: OPEN_BRACKETS (Expression (COMMA Expression)*)? CLOSE_BRACKETS
+
+-   **Postfix** : (OPEN_PARENTHESIS (Expression (COMMA Expression)*)? CLOSE_PARENTHESIS)?
+                : (OPEN_BRACKETS Expression CLOSE_BRACKETS)?

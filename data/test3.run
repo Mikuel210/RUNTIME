@@ -1,0 +1,6 @@
+number = Number(input("Input a number and I'll do COOL stuff with it: "))
+
+func = "[" + (Text(number) + ", ") * number - ", " + "]"
+list = func()
+
+print(list)
