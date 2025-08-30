@@ -12,9 +12,10 @@ GTE = GREATER THAN OR EQUALS
 
 ## Syntax
 
--   **Statements**: NEW_LINE* Expression (NEW_LINE+ Expression) NEW_LINE*
+-   **Statements**: NEW_LINE* Expression? (NEW_LINE+ Expression)* NEW_LINE*
 
--   **Expression**: Variable EQUALS Expression
+-   **Expression**: IfExpression
+                  : Variable EQUALS Expression
                   : ComparaisonExpression ((KEYWORD:and|or) ComparaisonExpression)*
 
 -   **ComparaisonExpression**: not ComparaisonExpression
@@ -22,8 +23,10 @@ GTE = GREATER THAN OR EQUALS
 
 -   **ArithmeticExpression**: Term ((ADD|SUBTRACT) Term)*
 
--   **Variable**: (LT Expression GT)? VARIABLE (IDENTIFIER|KEYWORD|Atom)
-                : (LT Expression GT)? IDENTIFIER
+-   **IfExpression**: KEYWORD:if OPEN_PARENTHESIS Expression CLOSE_PARENTHESIS Atom
+
+-   **Variable**: (LT Expression | KEYWORD:global GT)? VARIABLE (IDENTIFIER|KEYWORD|BaseAtom)
+                : (LT Expression | KEYWORD:global GT)? IDENTIFIER
 
 -   **Term**: Factor ((MULTIPLY|DIVIDE) Factor)*
 
@@ -34,7 +37,7 @@ GTE = GREATER THAN OR EQUALS
 
 -   **Atom**: BaseAtom (Postfix)*
 
--   **BaseAtom**: Variable | Number | String
+-   **BaseAtom**: Variable | Number | Text
             : OPEN_PARENTHESIS Expression CLOSE_PARENTHESIS
             : ListExpression
 

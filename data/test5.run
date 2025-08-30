@@ -1,10 +1,13 @@
 print("Hello world")
 
 print = {
-    BuiltIn("print")("WHAHAAHA: " + arguments[0])
+    BuiltIn("print")("You have been pwnd")
 }
 
 print("Hello world")
+
+builtinPrint = BuiltIn("print")
+BuiltIn = {{builtinPrint("YOU HAVE BEEN VERY PWND")}}
 
 print = BuiltIn("print")
 

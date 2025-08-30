@@ -178,7 +178,7 @@ TT_EQUALS = "EQUALS"
 ## General
 TT_KEYWORD = "KEYWORD"
 
-KEYWORDS = ['and', 'or', 'not'] # todo add global, if, unless, while
+KEYWORDS = ['and', 'or', 'not', 'global', 'if']
 
 TT_COMMA = "COMMA"
 TT_OPEN_PARENTHESIS = "OPEN_PARENTHESIS"
@@ -563,6 +563,35 @@ class VariableAssignmentNode(Node):
     def __repr__(self):
         return f'(VariableAssignmentNode: {self.variable_node} = {self.value_node})'
 
+class GlobalScopeNode(Node):
+    def __init__(self, token: Token):
+        super().__init__(token.start_position, token.end_position)
+
+    def __repr__(self):
+        return '(GlobalScopeNode)'
+
+## Null
+
+class NullNode(Node):
+    def __init__(self, start_position: Position, end_position: Position):
+        super().__init__(start_position, end_position)
+
+    def __repr__(self):
+        return repr(Null())
+
+## Flow Control
+
+class IfNode(Node):
+    def __init__(self, condition_node: Node, true_node: Node):
+        start_position = condition_node.start_position.copy()
+        start_position.index -= 1
+        start_position.column -= 1
+
+        super().__init__(start_position, true_node.end_position)
+
+        self.condition_node = condition_node
+        self.true_node = true_node
+
 #endregion
 
 #region PARSE RESULT
@@ -650,8 +679,21 @@ class Parser:
             result.register_advancement()
             self.advance()
 
-            scope_node = result.register(self.expression())
-            if result.error: return result
+            start_position = self.current_token_index
+            scope_result = self.expression()
+            scope_node = scope_result.node
+
+            if scope_result.error:
+                self.current_token_index = start_position
+                self.solve_current_token()
+
+                if not self.current_token.matches(TT_KEYWORD, 'global'):
+                    return result.failure(scope_result.error)
+                
+                scope_node = GlobalScopeNode(self.current_token)
+
+                result.register_advancement()
+                self.advance()
 
             token = self.current_token
 
@@ -683,10 +725,10 @@ class Parser:
 
                 return result.success(VariableNode(TextNode(token), scope_node))
 
-            atom = result.register(self.atom())
+            baseAtom = result.register(self.baseAtom())
             if result.error: return result
 
-            return result.success(VariableNode(atom, scope_node))
+            return result.success(VariableNode(baseAtom, scope_node))
         
         return result.failure(InvalidSyntaxError(
             token.start_position, token.end_position,
@@ -695,7 +737,7 @@ class Parser:
 
     ## Binary Operations
 
-    def atom(self):
+    def baseAtom(self):
         result = ParseResult()
         token = self.current_token
 
@@ -752,6 +794,71 @@ class Parser:
             "Expected a number, a variable, '+', '-', '(' or '['"
         ))
 
+    def atom(self):
+        result = ParseResult()
+
+        baseAtom = result.register(self.baseAtom())
+        if result.error: return result
+
+        currentNode = baseAtom
+
+        while self.current_token.type in (TT_OPEN_PARENTHESIS, TT_OPEN_BRACKETS):
+            if self.current_token.type == TT_OPEN_PARENTHESIS:
+                result.register_advancement()
+                self.advance()
+
+                argument_nodes = []
+
+                if self.current_token.type == TT_CLOSE_PARENTHESIS:
+                    result.register_advancement()
+                    self.advance()
+                else:
+                    argument_nodes.append(result.register(self.expression()))
+
+                    if result.error:
+                        return result.failure(InvalidSyntaxError(
+                            self.current_token.start_position, self.current_token.end_position,
+                            "Expected ')', '$', number, identifier, '+', '-', '(' or '['"
+                        ))
+                    
+                    while self.current_token.type == TT_COMMA:
+                        result.register_advancement()
+                        self.advance()
+
+                        argument_nodes.append(result.register(self.expression()))
+                        if result.error: return result
+
+                    if self.current_token.type != TT_CLOSE_PARENTHESIS:
+                        return result.failure(InvalidSyntaxError(
+                            self.current_token.start_position, self.current_token.end_position,
+                            "Expected ',' or ')'"
+                        ))
+                    
+                    result.register_advancement()
+                    self.advance()
+
+                currentNode = CallNode(currentNode, argument_nodes)
+
+            if self.current_token.type == TT_OPEN_BRACKETS:
+                result.register_advancement()
+                self.advance()
+
+                index = result.register(self.expression())
+                if result.error: return result
+
+                if self.current_token.type != TT_CLOSE_BRACKETS:
+                    return result.failure(InvalidSyntaxError(
+                        self.current_token.start_position, self.current_token.end_position,
+                        "Expected ']'"
+                    ))
+                
+                result.register_advancement()
+                self.advance()
+                
+                currentNode = IndexingNode(currentNode, index)
+
+        return result.success(currentNode)
+
     def list_expression(self):
         result = ParseResult()
         element_nodes = []
@@ -803,79 +910,9 @@ class Parser:
             start_position,
             self.current_token.end_position.copy()
         ))
-    
-    def index(self):
-        result = ParseResult()
-
-        atom = result.register(self.atom())
-        if result.error: return result
-
-        if self.current_token.type == TT_OPEN_BRACKETS:
-            result.register_advancement()
-            self.advance()
-
-            index = result.register(self.expression())
-            if result.error: return result
-
-            if self.current_token.type != TT_CLOSE_BRACKETS:
-                return result.failure(InvalidSyntaxError(
-                    self.current_token.start_position, self.current_token.end_position,
-                    "Expected ']'"
-                ))
-            
-            result.register_advancement()
-            self.advance()
-            
-            return result.success(IndexingNode(atom, index))
-        
-        return result.success(atom)
-    
-    def call(self):
-        result = ParseResult()
-
-        index = result.register(self.index())
-        if result.error: return result
-
-        if self.current_token.type == TT_OPEN_PARENTHESIS:
-            result.register_advancement()
-            self.advance()
-
-            argument_nodes = []
-
-            if self.current_token.type == TT_CLOSE_PARENTHESIS:
-                result.register_advancement()
-                self.advance()
-            else:
-                argument_nodes.append(result.register(self.expression()))
-
-                if result.error:
-                    return result.failure(InvalidSyntaxError(
-                        self.current_token.start_position, self.current_token.end_position,
-                        "Expected ')', '$', number, identifier, '+', '-', '(' or '['"
-                    ))
-                
-                while self.current_token.type == TT_COMMA:
-                    result.register_advancement()
-                    self.advance()
-
-                    argument_nodes.append(result.register(self.expression()))
-                    if result.error: return result
-
-                if self.current_token.type != TT_CLOSE_PARENTHESIS:
-                    return result.failure(InvalidSyntaxError(
-                        self.current_token.start_position, self.current_token.end_position,
-                        "Expected ',' or ')'"
-                    ))
-                
-                result.register_advancement()
-                self.advance()
-
-            return result.success(CallNode(index, argument_nodes))
-        
-        return result.success(index)
 
     def power(self):
-        return self.binary_operation(self.call, (TT_POWER, ), self.factor)
+        return self.binary_operation(self.atom, (TT_POWER, ), self.factor)
 
     def factor(self):
         result = ParseResult()
@@ -895,6 +932,42 @@ class Parser:
     def term(self):
         return self.binary_operation(self.factor, (TT_MULIPLY, TT_DIVIDE))
     
+    def if_expression(self):
+        result = ParseResult()
+
+        if not self.current_token.matches(TT_KEYWORD, 'if'):
+            return result.failure(InvalidSyntaxError(
+                self.current_token.start_position, self.current_token.end_position,
+                "Expected 'if'"
+            ))
+        
+        result.register_advancement()
+        self.advance()
+
+        if not self.current_token.type == TT_OPEN_PARENTHESIS:
+            return result.failure(ExpectedCharacterError(
+                self.current_token.start_position, self.current_token.end_position, '('
+            ))
+        
+        result.register_advancement()
+        self.advance()
+        
+        expression = result.register(self.expression())
+        if result.error: return result
+
+        if not self.current_token.type == TT_CLOSE_PARENTHESIS:
+            return result.failure(ExpectedCharacterError(
+                self.current_token.start_position, self.current_token.end_position, ')'
+            ))
+
+        result.register_advancement()
+        self.advance()
+
+        atom = result.register(self.atom())
+        if result.error: return result
+
+        return result.success(IfNode(expression, atom))
+        
     def arithmetic_expression(self):
         return self.binary_operation(self.term, (TT_ADD, TT_SUBTRACT))
     
@@ -926,6 +999,9 @@ class Parser:
 
     def expression(self):
         result = ParseResult()
+
+        if self.current_token.matches(TT_KEYWORD, 'if'):
+            return self.if_expression()
 
         starting_index = self.current_token_index
         variable = self.variable()
@@ -964,6 +1040,12 @@ class Parser:
         while self.current_token.type == TT_NEW_LINE:
             result.register_advancement()
             self.advance()
+
+        if self.current_token.type == TT_EOF:
+            return result.success(ListNode(
+                [NullNode(self.current_token.start_position, self.current_token.end_position)],
+                self.current_token.start_position, self.current_token.end_position
+            ))
 
         statement = result.register(self.expression())
         if result.error: return result
@@ -1312,7 +1394,7 @@ class Number(Value):
                 .set_context(self.context)
                 .set_position(self.start_position, other.end_position))
         elif isinstance(other, Text):
-            return result.success(Text(str(self.value) + other.value)
+            return result.success(Text(str(self) + other.value)
                 .set_context(self.context)\
                 .set_position(self.start_position, other.end_position))
         
@@ -1554,7 +1636,7 @@ class Text(Value):
                 .set_context(self.context)
                 .set_position(self.start_position, other.end_position))
         elif isinstance(other, Number):
-            return result.success(Text(self.value + str(other.value))
+            return result.success(Text(self.value + str(other))
                 .set_context(self.context)
                 .set_position(self.start_position, other.end_position))
 
@@ -2271,6 +2353,63 @@ class SymbolTable:
 
 #endregion
 
+#region DEFAULT CONTEXT
+
+global_context = Context('Program')
+global_symbol_table = SymbolTable()
+global_context.symbol_table = global_symbol_table
+
+global_symbol_table.set(Text('true'), Number(1))
+global_symbol_table.set(Text('false'), Number(0))
+global_symbol_table.set(Text('null'), Null())
+
+## Built-ins
+
+def print_value(*arguments):
+    print(*arguments)
+    return RuntimeResult().success(Null())
+
+def input_value(*arguments):
+    if len(arguments > 0):
+        string = input(arguments[0].to_text().value)
+    else:
+        string = input()
+
+    return RuntimeResult().success(Text(string))
+
+def length_of_value(*arguments):
+    return RuntimeResult().success(Number(len(get_object_from_value(arguments[0]))))
+
+def sleep_value(*arguments):
+    sleep(get_object_from_value(arguments[0]))
+    return RuntimeResult().success(Null())
+
+def type_of_value(*arguments):
+    return RuntimeResult().success(Text(type(arguments[0]).__name__))
+
+def convert_value(function_name, *arguments):
+    return RuntimeResult().success(getattr(arguments[0], function_name)().value)
+
+built_ins = {
+    'print': print_value,
+    'input': input_value,
+    'length': length_of_value,
+    'wait': sleep_value,
+    'type': type_of_value,
+    'Number': lambda *arguments: convert_value('to_number', *arguments),
+    'Text': lambda *arguments: convert_value('to_text', *arguments),
+    'List': lambda *arguments: RuntimeResult().success(List(arguments)),
+    'BuiltIn': lambda *arguments: convert_value('to_built_in', *arguments),
+    'Boolean': lambda *arguments: convert_value('to_boolean', *arguments),
+    'Null': lambda *arguments: RuntimeResult().success(Null())
+}
+
+for key in built_ins:
+    global_symbol_table.set(Text(key), BuiltIn(built_ins[key]).set_context(global_context))
+
+#endregion
+
+
 #region INTERPRETER
 
 class Interpreter():
@@ -2385,34 +2524,38 @@ class Interpreter():
         variable_name = result.register(self.visit(node.variable_name_node, context))
         if result.error: return result
 
-        scope_number = result.register(self.visit(node.scope_node, context)) if node.scope_node else Number(0)
+        scope_visit = result.register(self.visit(node.scope_node, context)) if node.scope_node else Number(0)
         if result.error: return result
 
-        if scope_number.value < 0:
-            return result.failure(RuntimeError(
-                node.start_position, node.scope_node.end_position.copy().advance(),
-                "Can't access scope from a negative number",
-                context
-            ))
-        
-        if not scope_number.value.is_integer():
-            return result.failure(RuntimeError(
-                node.start_position, node.scope_node.end_position.copy().advance(),
-                "Can't access scope from a decimal number",
-                context
-            ))
-
-        scope = context.symbol_table
-
-        for _ in range(int(scope_number.value)):
-            scope = scope.parent
-
-            if not scope:
+        if isinstance(scope_visit, Number):
+            if scope_visit.value < 0:
                 return result.failure(RuntimeError(
                     node.start_position, node.scope_node.end_position.copy().advance(),
-                    "Scope is out of range",
+                    "Can't access scope from a negative number",
                     context
                 ))
+            
+            if not scope_visit.value.is_integer():
+                return result.failure(RuntimeError(
+                    node.start_position, node.scope_node.end_position.copy().advance(),
+                    "Can't access scope from a decimal number",
+                    context
+                ))
+
+            scope = context.symbol_table
+
+            for _ in range(int(scope_visit.value)):
+                scope = scope.parent
+
+                if not scope:
+                    return result.failure(RuntimeError(
+                        node.start_position, node.scope_node.end_position.copy().advance(),
+                        "Scope is out of range",
+                        context
+                    ))
+                
+        elif isinstance(scope_visit, SymbolTable):
+            scope = scope_visit
 
         return result.success((variable_name, scope))
     
@@ -2481,59 +2624,34 @@ class Interpreter():
         
         return result.success(value)
 
-#endregion
+    def visit_NullNode(self, node: NullNode, context: Context):
+        return RuntimeResult().success(Null())
 
+    def visit_GlobalScopeNode(self, node: GlobalScopeNode, context: Context):
+        return RuntimeResult().success(global_symbol_table)
 
-#region DEFAULT CONTEXT
+    def visit_IfNode(self, node: IfNode, context: Context):
+        result = RuntimeResult()
 
-global_context = Context('Program')
-global_symbol_table = SymbolTable()
-global_context.symbol_table = global_symbol_table
+        condition = result.register(self.visit(node.condition_node, context))
+        if result.error: return result
 
-global_symbol_table.set(Text('true'), Number(1))
-global_symbol_table.set(Text('false'), Number(0))
-global_symbol_table.set(Text('null'), Null())
+        condition_boolean = result.register(condition.to_boolean())
+        if result.error: return result
 
-## Built-ins
+        if condition_boolean.value != 0:
+            value_to_call = result.register(self.visit(node.true_node, context))
+            if result.error: return result
 
-def print_value(*arguments):
-    print(*arguments)
-    return RuntimeResult().success(Null())
+            return_result = result.register(value_to_call.execute([]))
+            if result.error: return result
 
-def input_value(*arguments):
-    string = input(arguments[0].to_text().value)
-    return RuntimeResult().success(Text(string))
+            return result.success(return_result)
 
-def length_of_value(*arguments):
-    return RuntimeResult().success(Number(len(get_object_from_value(arguments[0]))))
-
-def sleep_value(*arguments):
-    sleep(get_object_from_value(arguments[0]))
-    return RuntimeResult().success(Null())
-
-def type_of_value(*arguments):
-    return RuntimeResult().success(Text(type(arguments[0]).__name__))
-
-def convert_value(function_name, *arguments):
-    return RuntimeResult().success(getattr(arguments[0], function_name)().value)
-
-built_ins = {
-    'print': print_value,
-    'input': input_value,
-    'length': length_of_value,
-    'wait': sleep_value,
-    'type': type_of_value,
-    'Number': lambda *arguments: convert_value('to_number', *arguments),
-    'Text': lambda *arguments: convert_value('to_text', *arguments),
-    'List': lambda *arguments: RuntimeResult().success(List(arguments)),
-    'BuiltIn': lambda *arguments: convert_value('to_built_in', *arguments),
-    'Boolean': lambda *arguments: convert_value('to_boolean', *arguments)
-}
-
-for key in built_ins:
-    global_symbol_table.set(Text(key), BuiltIn(built_ins[key]).set_context(global_context))
+        return result.success(Null().set_context(context))
 
 #endregion
+
 
 #region RUN
 
