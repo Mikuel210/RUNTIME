@@ -1,0 +1,13 @@
+make_variables = {
+    parent_scope = 1
+
+    [parent_scope]name = input("Enter your name: ")
+    [parent_scope]age = input("Enter your age: ")
+    [parent_scope]score = input("Enter your score: ")
+}
+
+make_variables()
+
+print("NAME: " + name)
+print("AGE: " + age)
+print("SCORE: " + score)

@@ -33,7 +33,7 @@ Make one typo and your whole app explodes? That's a JOKE. In RUNTIME, errors are
 >
 > — Terry Davis, creator of TempleOS
 
-Tuples, arrays, lists, stacks, queues... WHY? RUNTIME gives you just 6 types. No bloat. No confusion. No distractions. Still, all the tools you need to ACTUALLY bring your projects to life.
+Tuples, arrays, lists, stacks, queues... WHY? RUNTIME gives you just 7 types. No bloat. No confusion. No distractions. Still, all the tools you need to ACTUALLY bring your projects to life.
 
 ## Use cases
 
@@ -52,119 +52,119 @@ Tuples, arrays, lists, stacks, queues... WHY? RUNTIME gives you just 6 types. No
 | **Number**            | `3.14`, `42`                     | Numbers are just numbers. No `int`, `float`, `byte` or `double`, just one numeric type for all. `true` and `false` are variables with the default values of 1 and 0 respectively.                                                                                                                |
 | **List**              | `[1, 2, 3]`                      | Lists are just lists. No `stack`, `queue`, `array` or `tuple`. Just a single, flexible, ordered container.                                                                                                 |
 | **Dictionary**        | `["x": 1, "y": 2]`               | A list of key-value mappings. Syntax automatically detects colons to distinguish them from lists.                                                                                                          |
-| **Error**             | `error("Title", "Message")`      | Errors are just values. Your program keeps going. Inspect them, ignore them or react to them.                                                                                                              |
-| **Built-in function** | `builtin("print")`               | Built-ins perform low-level operations, meaning you can't access their code. They're stored in variables which you can overwrite. To get the default value for a built-in function, use `builtin("name")`. |
+| **Error**             | `Error("Title", "Message")`      | Errors are just values. Your program keeps going. Inspect them, ignore them or react to them.                                                                                                              |
+| **Built-in function** | `BuiltIn("print")`               | Built-ins perform low-level operations, meaning you can't access their code. They're stored in variables which you can overwrite. To get the default value for a built-in function, use `BuiltIn(name)`. |
+| **Null** | `Null()` | A single unit of nothingness. `null` is a default variable that holds a null object. |
 
-### Variable syntax
+### Variables
+
+#### Variable syntax
 
 | Syntax   | Meaning                                       |
 | -------- | --------------------------------------------- |
-| `$var`   | Get the value of `"var"`                      |
-| `#var`   | Get the reference to `"var"`                  |
-| `$(...)` | Get the value for a dynamic variable name     |
-| `#(...)` | Get the reference for a dynamic variable name |
+| `$var`   | Get the value or assign to `"var"`                      |
+| `$(...)` | Get the value or assign to a variable from a dynamic name     |
 
-#### Assigning and reading variables
+#### Reading and assignment
 
-To assign variables, use `#var = "value"`. To read them, use `$var`. For non-conflicting variable names, you can skip the `$` for getting its value.
+To read variables, use `$var`. To assign them, use `$var = "value"`. For non-conflicting variable names, you can skip the `$`.
 
 ```runtime
-#var = "Hello World!"
+$var = "Hello World!"
 $print($var) // > Hello World!
 
 // Non-conflicting names can skip the $
 print(var) // > Hello World!
 ```
 
+#### Scopes
+
+When a function is called, a new scope is created for its variables. Variables in parent scopes are visible by default, as long as they aren't shadowed by variables with the same name in children scopes. All variable assignments affect the current scope by default.
+
+To access or assign variables in the immediate parent scope, use `[1]$var`. To access variables two levels up in the hierarchy, use `[2]$var`, and so on. To access variables in the global scope, you can use the `global` keyword: `[global]$var`.
+
 ### Functions
 
-Functions are text variables. Any text is executable via `()`.
+Functions are made by defining text variables. Any text is executable via `()`.
 
 ```runtime
-#say_hello = {
+say_hello = {
     print("Hello World!")
 }
 
 say_hello() // > Hello World!
 ```
 
-You can get arguments with the `args` keyword and pass back values with the `return` keyword:
+You can get arguments from the `arguments` default variable. The last expression on a function will be returned by default.
 
 ```runtime
-#get_input = {
-    return(input("INPUT: " + args[0]))
+get_input = {
+    input("INPUT: " + arguments[0])
 }
 
-get_input("Enter your name") // > INPUT: Enter your name
+name = get_input("Enter your name") // > INPUT: Enter your name
+print("Your name is " + name) // > Your name is <name>
 ```
 
 ### Lists
 
-You can define lists with comma-separated values encapsulated between brackets. To read a value, use `$list[i]` and to overwrite it, use `#list[i] = "value"`.
+You can define lists with comma-separated values encapsulated between brackets. To read a value, use `$list[i]` and to overwrite it, use `$list[i] = "value"`.
 
 ```runtime
-#list = [1, 2, 3]
-#list[0] = 42
-print($list[0])    // > 42
+list = [1, 2, 3]
+list[0] = 42
+print(list[0]) // > 42
 ```
 
 ### Dictionaries
 
-You can define lists with comma-separated key-value pairs encapsulated between brackets. Each key-value pair is defined with a key object, a colon and a value object. To read a value, use `$dict[key]` and to overwrite it, use `#dict[key] = "value"`.
-
-```runtime
-#dict = [
-    "name": "Duna",
-    "age": 42
-]
-
-#dict["age"] = 49
-print(dict["age"]) //  > 49
-```
+TODO
 
 ### Built-in functions
 
-Built in functions are stored in variables, but you can restore them in any time with `builtin("name")`.
+Built-in functions are stored in default variables that can be overwritten. To get the default value for a built-in function, use `BuiltIn("name")`.
 
 ```runtime
 print("Hello World!") // > Hello World!
 
-#print = {
-    return(input("INPUT: " + args[0]))
+print = {
+    input("INPUT: " + args[0])
 }
 
 print("Hello World!") // > INPUT: Hello World!
 
-#print = builtin("print")
+print = BuiltIn("print")
 print("Hello World!") // > Hello World!
 ```
 
+| Function | Description | Return value |
+| `print(*objects)` | Prints one or more objects to the console. | `Null` |
+| `input(message?)` | Gets the user input from the console and displays an optional input message. | `Text` |
+| `length(value)` | Gets the length of the provided object. | `Number` |
+| `wait(seconds)` | Interrupts the thread for the provided amount of seconds. | `Null` |
+| `type(object)` | Returns the name of the type of the provided object. | `Text` |
+| `Number(object)` | Constructs a number object from an object of any type. | `Number` |
+| `Text(object)` | Constructs a text object from an object of any type. | `Text` |
+| `List(*objects)` | Constructs a list from the provided objects. | `List` |
+| `BuiltIn(name)` | Gets a built-in function from its name. | `BuiltIn` |
+| `Boolean(object)` | Constructs a number object with a value of either `0` or `1` from an object of any type. | `Number` |
+| `Null()` | Constructs a null object. | `Null` |
+
 ### Errors
 
-Errors are values you can inspect and react to.
-
-```runtime
-#x = "Not callable!"
-#result = x()
-
-print($result) // > Syntax Error
-
-if ($result is error) {
-    print("Caught: " + $result.message)
-}
-```
+TODO
 
 ### Flow control
 
 #### Conditions
 
--   `true`, `false`
--   `and`, `or`, `not`
--   `>`, `<`, `>=`, `<=`, `==`, `!=`
+-   `true` and `false` are variables with the default values of 1 and 0 respectivelly
+-   **Boolean operators:** `and`, `or`, `not`
+-   **Comparison operators:** `>`, `<`, `>=`, `<=`, `==`, `!=`
 
 #### Branching
 
--   **If**: Executes the provided text object if the provided condition is met
+-   **If**: Executes the provided object if the provided condition is met
 
     ```runtime
     if (true) {
@@ -172,7 +172,7 @@ if ($result is error) {
     }
     ```
 
--   **Unless**: Executes the provided text object if the provided condition isn't met
+-   **Unless**: Executes the provided object if the provided condition isn't met
 
     ```runtime
     unless (true) {
@@ -182,19 +182,22 @@ if ($result is error) {
 
 #### Loops
 
--   **While**: If the provided condition is met, the provided text object is executed and the code block repeats.
+-   **While**: If the provided condition is met, the provided object is executed and the code block repeats.
 
 ```runtime
-#i = 3
+i = 0
 
-while ($i > 0) {
-    print($i + " loop(s) left!")
-    $i = $i - 1
+while (i < 3) {
+    [1]i = i + 1
+    print("Loop " + i)
 }
 
-// > 3 loop(s) left!
-// > 2 loop(s) left!
-// > 1 loop(s) left!
+print("Loop ended")
+
+// > Loop 1
+// > Loop 2
+// > Loop 3
+// > Loop ended
 ```
 
 ---

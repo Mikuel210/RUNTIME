@@ -13,10 +13,10 @@ while True:
         exit(0)
 
     ## MAKE TOKENS
-    # result, error = runtime.make_tokens(file_name, text)
+    #result, error = runtime.make_tokens(file_name, text)
 
     ## MAKE AST
-    # ast = runtime.generate_ast(tokens)
+    # ast = runtime.generate_ast(result)
     # result = ast.node
     # error = ast.error
     
@@ -24,8 +24,8 @@ while True:
     result, error = runtime.run(file_name, text)
 
     if error: print(error)
-    else: 
-        if len(result.elements) == 1:
-            print(result.elements[0])
+    else:
+        if isinstance(result, runtime.List) and len(result.value) == 1:
+            print(repr(result.value[0]))
         else:
-            print(result)
+            print(repr(result))

@@ -1,0 +1,14 @@
+print("Hello world")
+
+print = {
+    BuiltIn("print")("You have been pwnd")
+}
+
+print("Hello world")
+
+builtinPrint = BuiltIn("print")
+BuiltIn = {{builtinPrint("YOU HAVE BEEN VERY PWND")}}
+
+print = BuiltIn("print")
+
+print("Hello world")
