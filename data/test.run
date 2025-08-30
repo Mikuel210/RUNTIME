@@ -2,7 +2,7 @@ get_score = {
     $prefix = "user_"
 
     $($prefix + "name") = "Duna"
-    $($prefix + "score") = 42
+    $($prefix + "score") = 49
 
     $user_name + " scored " + $user_score
 }
