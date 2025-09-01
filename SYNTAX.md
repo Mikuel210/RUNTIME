@@ -40,8 +40,11 @@ GTE = GREATER THAN OR EQUALS
 -   **BaseAtom**: Variable | Number | Text
             : OPEN_PARENTHESIS Expression CLOSE_PARENTHESIS
             : ListExpression
+            : DictionaryExpression
 
 -   **ListExpression**: OPEN_BRACKETS (Expression (COMMA Expression)*)? CLOSE_BRACKETS
+
+-   **DictionaryExpression**: PIPE (Expression COLON Expression (COMMA Expression COLON Expression)*)? PIPE
 
 -   **Postfix** : (OPEN_PARENTHESIS (Expression (COMMA Expression)*)? CLOSE_PARENTHESIS)?
                 : (OPEN_BRACKETS Expression CLOSE_BRACKETS)?

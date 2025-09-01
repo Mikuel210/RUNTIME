@@ -153,6 +153,10 @@ TT_TEXT = "TEXT"
 TT_OPEN_BRACKETS = "OPEN_BRACKETS"
 TT_CLOSE_BRACKETS = "CLOSE_BRACKETS"
 
+## Dictionaries
+TT_PIPE = "PIPE"
+TT_COLON = "COLON"
+
 ## Comparaisons
 TT_DOUBLE_EQUALS = "DOUBLE_EQUALS"
 TT_NOT_EQUALS = "NOT_EQUALS"
@@ -276,6 +280,12 @@ class Lexer:
                 tokens.append(Token(TT_OPEN_BRACKETS, start_position = self.position))
             elif self.current_character == ']':
                 tokens.append(Token(TT_CLOSE_BRACKETS, start_position = self.position))
+
+            ## Dictionaries
+            elif self.current_character == "|":
+                tokens.append(Token(TT_PIPE, start_position = self.position))
+            elif self.current_character == ":":
+                tokens.append(Token(TT_COLON, start_position = self.position))
             
             ## Comparisons
             elif self.current_character == '=':
@@ -504,7 +514,7 @@ class CallNode(Node):
             self.end_position = argument_nodes[len(argument_nodes) - 1].end_position
 
     def __repr__(self):
-        return f'(CallNode: {self.node_to_call}({', '.join(str(x) for x in self.argument_nodes)}))'
+        return f'(CallNode: {self.node_to_call}({", ".join(str(x) for x in self.argument_nodes)}))'
 
 ## Lists
 
@@ -514,7 +524,7 @@ class ListNode(Node):
         self.element_nodes = element_nodes
 
     def __repr__(self):
-        return f'([{', '.join(str(x) for x in self.element_nodes)}])'
+        return f'([{", ".join(str(x) for x in self.element_nodes)}])'
 
 class IndexingNode(Node):
     def __init__(self, base_node: Node, index_node: Node):
@@ -525,6 +535,16 @@ class IndexingNode(Node):
 
     def __repr__(self):
         return f'({self.base_node}[{self.index_node}])'
+
+## Dictionaries
+
+class DictionaryNode(Node):
+    def __init__(self, node_dictionary: dict[Node, Node], start_position: Position, end_position: Position):
+        super().__init__(start_position, end_position)
+        self.node_dictionary = node_dictionary
+
+    def __repr__(self):
+        return f'(|{str(self.node_dictionary).removeprefix("{").removesuffix("}")}|'
 
 ## Variables
 
@@ -787,6 +807,12 @@ class Parser:
             
             if result.error: return result
             return result.success(list_expression)
+        
+        elif token.type == TT_PIPE:
+            dictionary_expression = result.register(self.dictionary_expression())
+
+            if result.error: return result
+            return result.success(dictionary_expression)
             
         return result.failure(InvalidSyntaxError(
             token.start_position, 
@@ -862,9 +888,9 @@ class Parser:
     def list_expression(self):
         result = ParseResult()
         element_nodes = []
-        token = self.current_token
 
-        start_position = self.current_token.start_position.copy()
+        token = self.current_token
+        start_position = token.start_position.copy()
 
         if token.type != TT_OPEN_BRACKETS:
             return result.failure(InvalidSyntaxError(
@@ -907,6 +933,99 @@ class Parser:
 
         return result.success(ListNode(
             element_nodes,
+            start_position,
+            self.current_token.end_position.copy()
+        ))
+
+    def dictionary_element(self):
+        result = ParseResult()
+
+        while self.current_token.type == TT_NEW_LINE:
+            result.register_advancement()
+            self.advance()
+
+        key = result.register(self.expression())
+
+        if result.error:
+            return result.failure(InvalidSyntaxError(
+                self.current_token.start_position, self.current_token.end_position,
+                "Expected ']', '$', number, identifier, '+', '-', or '('"
+            ))
+
+        while self.current_token.type == TT_NEW_LINE:
+            result.register_advancement()
+            self.advance()
+
+        if self.current_token.type != TT_COLON:
+            return result.failure(ExpectedCharacterError(
+                self.current_token.start_position, self.current_token.end_position, ":"
+            ))
+        
+        result.register_advancement()
+        self.advance()
+
+        while self.current_token.type == TT_NEW_LINE:
+            result.register_advancement()
+            self.advance()
+        
+        value = result.register(self.expression())
+        return result.success((key, value))
+
+    def dictionary_expression(self):
+        result = ParseResult()
+        node_dictionary = {}
+    
+        token = self.current_token
+        start_position = token.start_position.copy()
+
+        if token.type != TT_PIPE:
+            return result.failure(InvalidSyntaxError(
+                start_position, token.end_position,
+                "Expected '|'"
+            ))
+        
+        result.register_advancement()
+        self.advance()
+
+        while self.current_token.type == TT_NEW_LINE:
+            result.register_advancement()
+            self.advance()
+
+        token = self.current_token
+
+        if token.type == TT_PIPE:
+            result.register_advancement()
+            self.advance()
+        else:
+            (key, value) = result.register(self.dictionary_element())
+            if result.error: return result
+
+            node_dictionary[key] = value
+            
+            while self.current_token.type == TT_COMMA:
+                result.register_advancement()
+                self.advance()
+
+                (key, value) = result.register(self.dictionary_element())
+                if result.error: return result
+
+                node_dictionary[key] = value
+
+            while self.current_token.type == TT_NEW_LINE:
+                result.register_advancement()
+                self.advance()
+
+            if self.current_token.type != TT_PIPE:
+                return result.failure(InvalidSyntaxError(
+                    self.current_token.start_position, self.current_token.end_position,
+                    "Expected ',' or '|'"
+                ))
+            
+            result.register_advancement()
+            self.advance()
+
+        return result.success(DictionaryNode(
+            node_dictionary,
             start_position,
             self.current_token.end_position.copy()
         ))
@@ -1823,7 +1942,7 @@ class List(Value):
     ## Execute
 
     def execute(self, arguments: list[Value]) -> RuntimeResult:
-        return (None, RuntimeError(
+        return RuntimeResult().failure(RuntimeError(
             self.start_position, self.end_position,
             f"An object of type {__class__.__name__} can't be executed",
             self.context
@@ -2009,6 +2128,227 @@ class List(Value):
         return RuntimeResult().success(self)
 
     def to_built_in(self) ->  RuntimeResult:
+        return RuntimeResult().failure(RuntimeError(
+            self.start_position, self.end_position,
+            f"An object of type {__class__.__name__} can't be casted to a built-in",
+            self.context
+        ))
+
+
+class Dictionary(Value):
+    def __init__(self, value: dict):
+        super().__init__(value)
+
+    def set_position(self, start_position = None, end_position = None):
+        return super().set_position(start_position, end_position)
+    
+    def set_context(self, context=None):
+        return super().set_context(context)
+    
+    def copy(self):
+        copy = Dictionary(self.value.copy())
+        copy.set_position(self.start_position, self.end_position)
+        copy.set_context(self.context)
+
+        return copy
+    
+    def __str__(self) -> str:
+        return f'|{str(self.value).removeprefix("{").removesuffix("}")}|'
+    
+    def __repr__(self) -> str:
+        return f'|{repr(self.value).removeprefix("{").removesuffix("}")}|'
+    
+    ## Execute
+
+    def execute(self, arguments: list[Value]) -> RuntimeResult:
+        return RuntimeResult().failure(RuntimeError(
+            self.start_position, self.end_position,
+            f"An object of type {__class__.__name__} can't be executed",
+            self.context
+        ))
+    
+    ## Index
+
+    def index(self, other: Value) -> RuntimeResult:
+        result = RuntimeResult()
+
+        keys = map(lambda e: e.value, list(self.value.keys()))
+        values = list(self.value.values())
+        dictionary = dict(zip(keys, values))
+
+        if other.value in dictionary:
+            return result.success(dictionary[other.value]
+                .set_context(self.context)
+                .set_position(self.start_position, other.end_position))
+
+        return result.failure(RuntimeError(
+            self.start_position, other.end_position.copy().advance(),
+            f"Key not found: {str(other)}",
+            self.context
+        ))
+    
+    ## Binary Operations
+
+    def added_to(self, other: Value) -> RuntimeResult:
+        result = RuntimeResult()
+        
+        if isinstance(other, Dictionary):
+            new_dictionary = self.copy()
+            new_dictionary.value.update(other.value)
+
+            return result.success(new_dictionary)
+        else:
+            return result.failure(RuntimeError(
+                self.start_position, other.end_position.copy(),
+                f"An object of type {__class__.__name__} can't be added to an object of type {type(other).__name__}",
+                self.context
+            ))
+
+    def subtracted_by(self, other: Value) -> RuntimeResult:
+        result = RuntimeResult()
+        new_dictionary = self.copy()
+        
+        if isinstance(other, Dictionary):
+            keys = map(lambda e: e.value, list(other.value.keys()))
+            values = list(other.value.values())
+            other_dictionary = dict(zip(keys, values))
+
+            for key in list(new_dictionary.value.keys()):
+                if key.value in other_dictionary:
+                    del new_dictionary.value[key]
+
+            return result.success(new_dictionary)
+        
+        elif isinstance(other, List):
+            other_list = list(map(lambda e: e.value, other.value))
+
+            for key in list(new_dictionary.value.keys()):
+                if key.value in other_list:
+                    del new_dictionary.value[key]
+
+            return result.success(new_dictionary)
+        
+        elif other.value in map(lambda e: e.value, list(self.value.keys())):
+            new_dictionary.value = { k: v for k, v in new_dictionary.value.items() if k.value != other.value }
+            return result.success(new_dictionary)
+        
+        else:
+            return result.failure(RuntimeError(
+                self.start_position, other.end_position.copy(),
+                f"Key not found: {str(other)}",
+                self.context
+            ))
+        
+    def multiplied_by(self, other: Value) -> RuntimeResult:
+        return RuntimeResult().failure(RuntimeError(
+            self.start_position, other.end_position,
+            f"An object of type {__class__.__name__} can't be multiplied",
+            self.context
+        ))
+        
+    def divided_by(self, other: Value) -> RuntimeResult:
+        return RuntimeResult().failure(RuntimeError(
+            self.start_position, other.end_position,
+            f"An object of type {__class__.__name__} can't be divided",
+            self.context
+        ))
+
+    def powered_by(self, other: Value) -> RuntimeResult:
+        return RuntimeResult().failure(RuntimeError(
+            self.start_position, other.end_position,
+            f"An object of type {__class__.__name__} can't be raised to a power",
+            self.context
+        ))
+    
+    ## Comparaisons
+
+    def is_equals_to(self, other) -> RuntimeResult:
+        result = RuntimeResult()
+
+        if isinstance(other, Dictionary):
+            self_keys = map(lambda e: e.value, list(self.value.keys()))
+            self_values =  map(lambda e: e.value, list(self.value.values()))
+            self_dictionary = dict(zip(self_keys, self_values))
+
+            other_keys = map(lambda e: e.value, list(other.value.keys()))
+            other_values =  map(lambda e: e.value, list(other.value.values()))
+            other_dictionary = dict(zip(other_keys, other_values))
+
+            return result.success(Number(self_dictionary == other_dictionary)
+                .set_context(self.context)
+                .set_position(self.start_position, other.end_position))
+
+        return result.success(Number(0)
+            .set_context(self.context)
+            .set_position(self.start_position, other.end_position))
+    
+    def is_not_equals_to(self, other) -> RuntimeResult:
+        return super().is_not_equals_to(other)
+
+    def is_greater_than(self, other) -> RuntimeResult:
+        result = RuntimeResult()
+
+        if isinstance(other, Dictionary):
+            return result.success(Number(len(self.value) > len(other.value))\
+                .set_context(self.context)\
+                .set_position(self.start_position, other.end_position))
+
+        return result.failure(RuntimeError(
+            self.start_position, other.end_position,
+            f"An object of type {__class__.__name__} can't be compared with an object of type {type(other).__name__} with a '>' or '>=' operator",
+            self.context
+        ))
+
+    def is_less_than(self, other) -> RuntimeResult:
+        result = RuntimeResult()
+
+        if isinstance(other, Dictionary):
+            return result.success(Number(len(self.value) < len(other.value))\
+                .set_context(self.context)\
+                .set_position(self.start_position, other.end_position))
+
+        return result.failure(RuntimeError(
+            self.start_position, other.end_position,
+            f"An object of type {__class__.__name__} can't be compared with an object of type {type(other).__name__} with a '>' or '>=' operator",
+            self.context
+        ))
+
+    def is_greater_or_equals(self, other) -> RuntimeResult:
+        return super().is_greater_or_equals(other)
+
+    def is_less_or_equals(self, other) -> RuntimeResult:
+        return super().is_less_or_equals(other)
+    
+    ## Logical operators
+
+    def and_(self, other) -> RuntimeResult:
+        return super().and_(other)
+    
+    def or_(self, other) -> RuntimeResult:
+        return super().or_(other)
+    
+    def not_(self) -> RuntimeResult:
+        return super().not_()
+    
+    ## Conversion
+
+    def to_boolean(self) -> RuntimeResult:
+        return RuntimeResult().success(Number(len(self.value) > 0))
+    
+    def to_number(self) -> RuntimeResult:
+        return RuntimeResult().success(Number(len(self.value)))
+
+    def to_text(self) -> RuntimeResult:
+        return RuntimeResult().success(Text(repr(self)))
+
+    def to_list(self) -> RuntimeResult:
+        return RuntimeResult().failure(RuntimeError(
+            self.start_position, self.end_position,
+            f"An object of type {__class__.__name__} can't be casted to a list",
+            self.context
+        ))
+
+    def to_built_in(self) -> RuntimeResult:
         return RuntimeResult().failure(RuntimeError(
             self.start_position, self.end_position,
             f"An object of type {__class__.__name__} can't be casted to a built-in",
@@ -2370,7 +2710,7 @@ def print_value(*arguments):
     return RuntimeResult().success(Null())
 
 def input_value(*arguments):
-    if len(arguments > 0):
+    if len(arguments) > 0:
         string = input(arguments[0].to_text().value)
     else:
         string = input()
@@ -2448,6 +2788,25 @@ class Interpreter():
 
         return result.success(
             List(elements)\
+                .set_position(node.start_position, node.end_position)\
+                .set_context(context)
+        )
+    
+    def visit_DictionaryNode(self, node: DictionaryNode, context: Context):
+        result = RuntimeResult()
+        keys = []
+        values = []
+
+        for key_node in list(node.node_dictionary.keys()):
+            keys.append(result.register(self.visit(key_node, context)))
+            if result.error: return result
+
+        for value_node in list(node.node_dictionary.values()):
+            values.append(result.register(self.visit(value_node, context)))
+            if result.error: return result
+
+        return result.success(
+            Dictionary(dict(zip(keys, values)))\
                 .set_position(node.start_position, node.end_position)\
                 .set_context(context)
         )
