@@ -1,7 +1,0 @@
-
-wait_input = {
-    [global]seconds = Number(input("Wait how many seconds? "))
-    wait(seconds)
-}
-
-print()

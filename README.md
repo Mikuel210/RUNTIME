@@ -5,7 +5,32 @@
 RUNTIME is a heavily opinionated, dynamic interpreted language built for flexibility and adaptability.
 No type cages. No compile-time errors. No bloat. Just you, your ideas and a blank canvas.
 
-## Philosophy - The 6 Core Pillars of RUNTIME
+> **ABOUT AI USAGE:** I have used AI to rewrite some parts of this README and for general design guidance. AI hasn't written a single line of code for this project.
+
+# NAVIGATION
+
+- [PHILOSOPHY - The 6 Core Pillars of RUNTIME](#philosophy---the-6-core-pillars-of-runtime)
+    - [Typed languages are cages](#typed-languages-are-cages)
+    - [Variables are memory entries](#variables-are-memory-entries)
+    - [Code is text](#code-is-text)
+    - [Programs should evolve](#programs-should-evolve)
+    - [Errors are values](#errors-are-values)
+    - [Simplicity is key](#simplicity-is-key)
+- [USE CASES](#use-cases)
+    - [Examples](#examples)
+        - [1. Code is text](#1-code-is-text)
+        - [2. Dynamic variables](#2-dynamic-variables)
+        - [3. Hot-swapping built-ins](#3-hot-swapping-built-ins)
+        - [4. AI written features](#4-ai-written-features)
+- [GETTING STARTED](#getting-started)
+    - [Prerequisites](#prerequisites)
+    - [Installation](#installation)
+    - [Usage](#usage)
+    - [Resources](#resources)
+
+# PHILOSOPHY - The 6 Core Pillars of RUNTIME
+
+> **DISCLAIMER:** RUNTIME is in active development and not all features described in the philosophy are available as of now.
 
 ### Typed languages are cages
 
@@ -35,179 +60,136 @@ Make one typo and your whole app explodes? That's a JOKE. In RUNTIME, errors are
 
 Tuples, arrays, lists, stacks, queues... WHY? RUNTIME gives you just 7 types. No bloat. No confusion. No distractions. Still, all the tools you need to ACTUALLY bring your projects to life.
 
-## Use cases
+# USE CASES
 
 -   **Self-modifying programs**: AI written on-demand features? Self-evolving code? You can do that and much more.
 -   **Self-debugging code**: Instead of crashing on errors, your program can patch itself and keep going.
--   **Hot-swappable features**: Replace entire functions and modules at runtime. No restarts required.
--   **Safety-critical software**: No don't do that.
+-   **Hot-swappable features**: Replace or generate entire functions and modules at runtime. No restarts required.
 
-## Language design
+## Examples
 
-### Core types
+### 1. Code is text
 
-| Type                  | Syntax                           | Description                                                                                                                                                                                                |
-| --------------------- | -------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Text**              | `"Single line"`, `{ Multiline }` | All text is executable via `()`. Multiline strings using `{}` can be nested.                                                                                                                               |
-| **Number**            | `3.14`, `42`                     | Numbers are just numbers. No `int`, `float`, `byte` or `double`, just one numeric type for all. `true` and `false` are variables with the default values of 1 and 0 respectively.                                                                                                                |
-| **List**              | `[1, 2, 3]`                      | Lists are just lists. No `stack`, `queue`, `array` or `tuple`. Just a single, flexible, ordered container.                                                                                                 |
-| **Dictionary**        | `["x": 1, "y": 2]`               | A list of key-value mappings. Syntax automatically detects colons to distinguish them from lists.                                                                                                          |
-| **Error**             | `Error("Title", "Message")`      | Errors are just values. Your program keeps going. Inspect them, ignore them or react to them.                                                                                                              |
-| **Built-in function** | `BuiltIn("print")`               | Built-ins perform low-level operations, meaning you can't access their code. They're stored in variables which you can overwrite. To get the default value for a built-in function, use `BuiltIn(name)`. |
-| **Null** | `Null()` | A single unit of nothingness. `null` is a default variable that holds a null object. |
+```javascript
+code = "print({ Hello from text! })"
+code() // Executes the text object as code
 
-### Variables
-
-#### Variable syntax
-
-| Syntax   | Meaning                                       |
-| -------- | --------------------------------------------- |
-| `$var`   | Get the value or assign to `"var"`                      |
-| `$(...)` | Get the value or assign to a variable from a dynamic name     |
-
-#### Reading and assignment
-
-To read variables, use `$var`. To assign them, use `$var = "value"`. For non-conflicting variable names, you can skip the `$`.
-
-```runtime
-$var = "Hello World!"
-$print($var) // > Hello World!
-
-// Non-conflicting names can skip the $
-print(var) // > Hello World!
+// > Hello from text!
 ```
 
-#### Scopes
+### 2. Dynamic variables
 
-When a function is called, a new scope is created for its variables. Variables in parent scopes are visible by default, as long as they aren't shadowed by variables with the same name in children scopes. All variable assignments affect the current scope by default.
+```javascript
+make_variable = {
+    name = arguments[0]
+    value = arguments[1]
 
-To access or assign variables in the immediate parent scope, use `[1]$var`. To access variables two levels up in the hierarchy, use `[2]$var`, and so on. To access variables in the global scope, you can use the `global` keyword: `[global]$var`.
+    [1]$(name) = value
 
-### Functions
-
-Functions are made by defining text variables. Any text is executable via `()`.
-
-```runtime
-say_hello = {
-    print("Hello World!")
+    // [1] references the parent scope
+    // $ starts the variable assignment
+    // (name) is a dynamic variable name
 }
 
-say_hello() // > Hello World!
+make_variable("message", "Hello world!")
+print(message) // > Hello world!
 ```
 
-You can get arguments from the `arguments` default variable. The last expression on a function will be returned by default.
+### 3. Hot-swapping built-ins
 
-```runtime
-get_input = {
-    input("INPUT: " + arguments[0])
-}
-
-name = get_input("Enter your name") // > INPUT: Enter your name
-print("Your name is " + name) // > Your name is <name>
-```
-
-### Lists
-
-You can define lists with comma-separated values encapsulated between brackets. To read a value, use `$list[i]` and to overwrite it, use `$list[i] = "value"`.
-
-```runtime
-list = [1, 2, 3]
-list[0] = 42
-print(list[0]) // > 42
-```
-
-### Dictionaries
-
-TODO
-
-### Built-in functions
-
-Built-in functions are stored in default variables that can be overwritten. To get the default value for a built-in function, use `BuiltIn("name")`.
-
-```runtime
-print("Hello World!") // > Hello World!
-
+```javascript
+// Overwrite prіnt to add a prefix
 print = {
-    input("INPUT: " + args[0])
+    [default]print("LOG: " + arguments[0])
 }
 
-print("Hello World!") // > INPUT: Hello World!
+print("Hello World!") // > LOG: Hello World!
 
-print = BuiltIn("print")
-print("Hello World!") // > Hello World!
+// Restore default
+print = [default]print // Get functіon from default scope
+print("Back to normal!") // > Back to normal!
 ```
 
-| Function | Description | Return value |
-| `print(*objects)` | Prints one or more objects to the console. | `Null` |
-| `input(message?)` | Gets the user input from the console and displays an optional input message. | `Text` |
-| `length(value)` | Gets the length of the provided object. | `Number` |
-| `wait(seconds)` | Interrupts the thread for the provided amount of seconds. | `Null` |
-| `type(object)` | Returns the name of the type of the provided object. | `Text` |
-| `Number(object)` | Constructs a number object from an object of any type. | `Number` |
-| `Text(object)` | Constructs a text object from an object of any type. | `Text` |
-| `List(*objects)` | Constructs a list from the provided objects. | `List` |
-| `BuiltIn(name)` | Gets a built-in function from its name. | `BuiltIn` |
-| `Boolean(object)` | Constructs a number object with a value of either `0` or `1` from an object of any type. | `Number` |
-| `Null()` | Constructs a null object. | `Null` |
 
-### Errors
+### 4. AI written features
 
-TODO
+```javascript
+while (true) {
+    request = input("INPUT (execute | add feature): ").to_lowercase()
 
-### Flow control
+    if (request == "execute") 
+    {
+        feature = input("What feature should I execute? ")
+        $(feature)() // Execute a function from a dynamic name
+    } 
+    else if (request == "add feature") 
+    {
+        // Request a feature аnd ask AI to code it
+        feature = input("What feature should I add? ")
+        code = ai.vibecode(feature + "\n\nOutput a function only.")
 
-#### Conditions
+        print()
 
--   `true` and `false` are variables with the default values of 1 and 0 respectivelly
--   **Boolean operators:** `and`, `or`, `not`
--   **Comparison operators:** `>`, `<`, `>=`, `<=`, `==`, `!=`
+        print("AI wrote the following code:\n" + code + "\n")
+        ("[global]" + code)() // Declare the function in the global scope
 
-#### Branching
-
--   **If**: Executes the provided object if the provided condition is met
-
-    ```runtime
-    if (true) {
-        print("Hello World!")
+        print("\nFeature added! Try running it now.")
     }
-    ```
 
--   **Unless**: Executes the provided object if the provided condition isn't met
-
-    ```runtime
-    unless (true) {
-        print("This won't run")
-    }
-    ```
-
-#### Loops
-
--   **While**: If the provided condition is met, the provided object is executed and the code block repeats.
-
-```runtime
-i = 0
-
-while (i < 3) {
-    [1]i = i + 1
-    print("Loop " + i)
+    print()
 }
-
-print("Loop ended")
-
-// > Loop 1
-// > Loop 2
-// > Loop 3
-// > Loop ended
 ```
+
+# GETTING STARTED
+
+## Prerequisites
+
+- [Python 3.12 or greater](https://www.python.org/downloads/)
+
+## Installation
+
+1. Clone the repository
+    ```bash
+    git clone https://github.com/Mikuel210/RUNTIME.git
+    ```
+
+2. Install dependencies and CLI tool
+    ```bash
+    cd RUNTIME
+    pip install .
+    ```
+
+## Usage
+
+- Run `programs/examples/ai_written_features.run`
+    ```bash
+    runtime examples/ai_written_features
+    ```
+    ```bash
+    runtime examples/ai_written_features.run
+    ```
+
+- Run `programs/my_program.run`
+    ```bash
+    runtime my_program
+    ```
+    ```bash
+    runtime my_program.run
+    ```
+
+- Start REPL
+    ```bash 
+    runtime
+    ```
+
+## Resources
+
+- [RUNTIME Guide](https://github.com/Mikuel210/RUNTIME/blob/main/GUIDE.md)
+- [RUNTIME Documentation](https://github.com/Mikuel210/RUNTIME/blob/main/DOCUMENTATION.md)
+
 
 ---
 
 RUNTIME isn't just a new language.
 
 **It's a new way to think.**
-
----
-
-> RUNTIME is a work in progress and limited functionality is available. Stay tuned for updates.
-
-> DISCLAIMER: I have used AI to rewrite some parts of this README. I haven't used AI for anything else in this project.

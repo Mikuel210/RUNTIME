@@ -1,4 +1,9 @@
-data/*
+programs/*
+!programs/examples/
+!programs/examples/**
+*.egg-info
+dist/
+build/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

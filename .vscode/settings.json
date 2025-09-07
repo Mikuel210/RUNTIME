@@ -1,0 +1,6 @@
+{
+    "files.associations": {
+        "*.run": "javascript"
+    },
+    "javascript.validate.enable": false
+}

@@ -15,7 +15,8 @@ GTE = GREATER THAN OR EQUALS
 -   **Statements**: NEW_LINE* Expression? (NEW_LINE+ Expression)* NEW_LINE*
 
 -   **Expression**: IfExpression
-                  : Variable EQUALS Expression
+                  : WhileExpression
+                  : (Variable|Index) EQUALS Expression
                   : ComparaisonExpression ((KEYWORD:and|or) ComparaisonExpression)*
 
 -   **ComparaisonExpression**: not ComparaisonExpression
@@ -23,10 +24,14 @@ GTE = GREATER THAN OR EQUALS
 
 -   **ArithmeticExpression**: Term ((ADD|SUBTRACT) Term)*
 
--   **IfExpression**: KEYWORD:if OPEN_PARENTHESIS Expression CLOSE_PARENTHESIS Atom
+-   **IfExpression**: KEYWORD:if OPEN_PARENTHESIS Expression CLOSE_PARENTHESIS Atom (KEYWORD:else Atom|IfExpression)?
 
--   **Variable**: (LT Expression | KEYWORD:global GT)? VARIABLE (IDENTIFIER|KEYWORD|BaseAtom)
-                : (LT Expression | KEYWORD:global GT)? IDENTIFIER
+-   **WhileExpression**: KEYWORD:while OPEN_PARENTHESIS Expression CLOSE_PARENTHESIS Atom
+
+-   **Variable**: (OPEN_BRACKETS(Expression|KEYWORD:global|KEYWORD:default)CLOSE_BRACKETS)? VARIABLE (IDENTIFIER|KEYWORD|BaseAtom)
+                : (OPEN_BRACKETS(Expression|KEYWORD:global|KEYWORD:default)CLOSE_BRACKETS)? IDENTIFIER
+
+-   **Index**: Atom // Failure if the last postfix is not an index
 
 -   **Term**: Factor ((MULTIPLY|DIVIDE) Factor)*
 
@@ -48,3 +53,4 @@ GTE = GREATER THAN OR EQUALS
 
 -   **Postfix** : (OPEN_PARENTHESIS (Expression (COMMA Expression)*)? CLOSE_PARENTHESIS)?
                 : (OPEN_BRACKETS Expression CLOSE_BRACKETS)?
+                : DOT (IDENTIFIER|KEYWORD)
