@@ -3994,10 +3994,10 @@ def List_index_of(context, start_position, end_position, *arguments):
             context
         ))
     
-    if not isinstance(arguments[1], List):
+    if not isinstance(arguments[1], Number):
         return RuntimeResult().failure(RuntimeError(
             start_position, end_position,
-            'Type error: first argument must be a list',
+            'Type error: first argument must be a number',
             context
         ))
 
