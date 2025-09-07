@@ -166,6 +166,7 @@ while (true) {
     ```bash
     runtime examples/ai_written_features
     ```
+    or
     ```bash
     runtime examples/ai_written_features.run
     ```
@@ -174,6 +175,7 @@ while (true) {
     ```bash
     runtime my_program
     ```
+    or
     ```bash
     runtime my_program.run
     ```
