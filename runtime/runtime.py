@@ -3452,7 +3452,7 @@ You are an expert in creating computer code in the RUNTIME programming language.
 
 """ + user_prompt
 
-    return ai_prompt(context, Text(system_prompt))
+    return ai_prompt(context, start_position, end_position, Text(system_prompt))
 
 default_symbol_table.set(Text('ai'), Dictionary({ 
     Text("prompt"): BuiltIn(ai_prompt).set_context(global_context),

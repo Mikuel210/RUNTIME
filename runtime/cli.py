@@ -25,7 +25,7 @@ def run(file_name, log = True):
     except KeyboardInterrupt:
         exit(0)
 
-    except:
+    except FileNotFoundError:
         display_name = file_name if file_name.endswith('.run') else file_name + '.run'
         print(f"Could not open file: programs/{display_name}")
 

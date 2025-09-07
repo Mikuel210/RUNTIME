@@ -130,10 +130,11 @@ while (true) {
 
         print()
 
-        print("AI wrote the following code:\n" + code + "\n")
+        print("AI wrote the following code:"); print()
+        print(code)
         ("[global]" + code)() // Declare the function in the global scope
 
-        print("\nFeature added! Try running it now.")
+        print(); print("Feature added! Try running it now.")
     }
 
     print()
