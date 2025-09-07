@@ -17,7 +17,7 @@ while (true) {
         print(code)
         
         code = "[global]" + code // Declare the function in the global scope
-        ("[global]" + code)() // Execute the code
+        (code)() // Execute the code
 
         print(); print("Feature added! Try running it now.")
     }
