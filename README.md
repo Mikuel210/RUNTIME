@@ -163,6 +163,8 @@ while (true) {
 ## Usage
 
 - Run `programs/examples/ai_written_features.run`
+    
+    In the RUNTIME directory:
     ```bash
     runtime examples/ai_written_features
     ```
@@ -172,6 +174,8 @@ while (true) {
     ```
 
 - Run `programs/my_program.run`
+
+    In the RUNTIME directory:
     ```bash
     runtime my_program
     ```

@@ -2,7 +2,7 @@ from . import runtime
 from sys import exit, argv
 import os
 
-BASE_DIRECTORY = os.path.dirname(os.path.abspath(__file__))
+BASE_DIRECTORY = os.getcwd()
 
 def main():
     if len(argv) == 1:
@@ -13,7 +13,7 @@ def main():
 
 def run(file_name, log = True):
     try:
-        path = os.path.join(BASE_DIRECTORY, "..", "programs", file_name)
+        path = os.path.join(BASE_DIRECTORY, "programs", file_name)
         if not os.path.exists(path) and not path.endswith('.run'): path = path + '.run'
 
         with open(path, 'r') as file:
