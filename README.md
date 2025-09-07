@@ -142,6 +142,8 @@ while (true) {
 }
 ```
 
+![Example image](images/example.png)
+
 # GETTING STARTED
 
 ## Prerequisites
