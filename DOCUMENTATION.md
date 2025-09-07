@@ -262,20 +262,21 @@ print("Hello World!") // > Hello World!
 
 #### Lists
 
-| Function            | Parameters                       | Description                                                                       | Return type |
-| ------------------- | -------------------------------- | --------------------------------------------------------------------------------- | ----------- |
-| `List.append`       | `element: object`                | Adds the `element` to the end of the list.                                        | `List`      |
-| `List.extend`       | `other: List`                    | Adds all elements in `other` to the end of the list.                              | `List`      |
-| `List.remove`       | `element: object`                | Removes the first occurence of `element` from the list.                           | `List`      |
-| `List.remove_all`   | `element: object`                | Removes all occurrences of `elements` from the list.                              | `List`      |
-| `List.subtract`     | `other: List`                    | Removes the first occurence of each element in `other` from the list.             | `List`      |
-| `List.subtract_all` | `other: List`                    | Removes all occurences of each element in `other` from the list.                  | `List`      |
-| `List.contains`     | `element: object`                | Returns `1` if the list contains the `element`, and `0` if it doesn't.            | `Number`    |
-| `List.index_of`     | `element: object`                | Returns the index of the first ocurrence of `element` in the list.                | `Number`    |
-| `List.insert`       | `index: Number, element: object` | Adds the `element` at the provided `index`.                                       | `List`      |
-| `List.pop`          | `index: Number`                  | Removes the element found at the provided `index`.                                | `List`      |
-| `List.count`        | `element: object`                | Returns the number of occurences of `element` in the list.                        | `Number`    |
-| `List.slice`        | `start: Number, end: Number`     | Returns a sublist from `start` (inclusive) to `end` (exclusive).                  | `List`      |
+| Function            | Parameters                       | Description                                                                                                     | Return type |
+| ------------------- | -------------------------------- | --------------------------------------------------------------------------------------------------------------- | ----------- |
+| `List.append`       | `element: object`                | Adds the `element` to the end of the list.                                                                      | `List`      |
+| `List.extend`       | `other: List`                    | Adds all elements in `other` to the end of the list.                                                            | `List`      |
+| `List.remove`       | `element: object`                | Removes the first occurence of `element` from the list.                                                         | `List`      |
+| `List.remove_all`   | `element: object`                | Removes all occurrences of `elements` from the list.                                                            | `List`      |
+| `List.subtract`     | `other: List`                    | Removes the first occurence of each element in `other` from the list.                                           | `List`      |
+| `List.subtract_all` | `other: List`                    | Removes all occurences of each element in `other` from the list.                                                | `List`      |
+| `List.contains`     | `element: object`                | Returns `1` if the list contains the `element`, and `0` if it doesn't.                                          | `Number`    |
+| `List.index_of`     | `element: object`                | Returns the index of the first ocurrence of `element` in the list.                                              | `Number`    |
+| `List.insert`       | `index: Number, element: object` | Adds the `element` at the provided `index`.                                                                     | `List`      |
+| `List.pop`          | `index: Number`                  | Removes the element found at the provided `index`.                                                              | `List`      |
+| `List.count`        | `element: object`                | Returns the number of occurences of `element` in the list.                                                      | `Number`    |
+| `List.slice`        | `start: Number, end: Number`     | Returns a sublist from `start` (inclusive) to `end` (exclusive).                                                | `List`      |
+| `List.map`          | `function: Text`                 | Executes the given function for each element (with `arguments[0] = element`) and returns the results as a list. | `List`      |
 
 #### Dictionaries
 
@@ -291,11 +292,12 @@ print("Hello World!") // > Hello World!
 
 #### Text
 
-| Function             | Parameters     | Description                                          | Return type |
-| -------------------- | -------------- | ---------------------------------------------------- | ----------- |
-| `Text.to_lowercase`  |                | Returns the lowercase equivalent of the text object. | `Text`      |
-| `Text.to_uppercase`  |                | Returns the upper equivalent of the text object.     | `Text`      |
-| `Text.add_prefix`    | `prefix: Text` | Adds a `prefix` to the text object.                  | `Text`      |
-| `Text.remove_prefix` | `prefix: Text` | Removes a `prefix` from the text object, if present. | `Text`      |
-| `Text.add_suffix`    | `suffix: Text` | Adds a `suffix` to the text object.                  | `Text`      |
-| `Text.remove_suffix` | `suffix: Text` | Removes a `suffix` from the text object, if present. | `Text`      |
+| Function             | Parameters     | Description                                             | Return type |
+| -------------------- | -------------- | ------------------------------------------------------- | ----------- |
+| `Text.strip`         |                | Removes leading and trailing whitespaces from the text. | `Text`      |
+| `Text.to_lowercase`  |                | Returns the lowercase equivalent of the text object.    | `Text`      |
+| `Text.to_uppercase`  |                | Returns the upper equivalent of the text object.        | `Text`      |
+| `Text.add_prefix`    | `prefix: Text` | Adds a `prefix` to the text object.                     | `Text`      |
+| `Text.remove_prefix` | `prefix: Text` | Removes a `prefix` from the text object, if present.    | `Text`      |
+| `Text.add_suffix`    | `suffix: Text` | Adds a `suffix` to the text object.                     | `Text`      |
+| `Text.remove_suffix` | `suffix: Text` | Removes a `suffix` from the text object, if present.    | `Text`      |

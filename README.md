@@ -127,10 +127,9 @@ while (true) {
         // Request a feature аnd ask AI to code it
         feature = input("What feature should I add? ")
         code = ai.vibecode(feature + "\n\nOutput a function only.")
-        code = code.remove_prefix("```runtime").remove_suffix("```") // Remove Markdown if present
 
-        print(); print("AI wrote the following code:"); print()
-        print(code)
+        print(); print("AI wrote the following code:")
+        print(); print(code)
         
         code = "[global]" + code // Declare the function in the global scope
         (code)() // Execute the code

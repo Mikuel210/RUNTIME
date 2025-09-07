@@ -2338,14 +2338,19 @@ class List(Value):
     ## Binary Operations
 
     def added_to(self, other: Value) -> RuntimeResult:
-        new_list = self.copy()
-        
         if isinstance(other, List):
+            new_list = self.copy()
             new_list.value = new_list.value + other.value
-        elif isinstance(other, Text):
-            return RuntimeResult.success(Text(str(self) + other.value))
 
-        return RuntimeResult().success(new_list)
+            return RuntimeResult().success(new_list)
+        elif isinstance(other, Text):
+            return RuntimeResult().success(Text(str(self) + other.value))
+
+        return RuntimeResult().failure(RuntimeError(
+            self.start_position, other.end_position,
+            f"An object of type {__class__.__name__} can't be added to an object of type {other.__class__.__name__}",
+            self.context
+        ))
         
     def subtracted_by(self, other: Value) -> RuntimeResult:
         return RuntimeResult().failure(RuntimeError(
@@ -2376,8 +2381,8 @@ class List(Value):
                 .set_position(self.start_position, self.end_position)\
                 .set_context(self.context)
             
-            for i in range(other.value):
-                new_list = new_list + self.value
+            for i in range(int(other.value)):
+                new_list.value.extend(self.value)
 
             return result.success(new_list)
 
@@ -2565,7 +2570,7 @@ class Dictionary(Value):
 
             return result.success(new_dictionary)
         elif isinstance(other, Text):
-            return RuntimeResult.success(Text(str(self) + other.value))
+            return RuntimeResult().success(Text(str(self) + other.value))
         else:
             return result.failure(RuntimeError(
                 self.start_position, other.end_position.copy(),
@@ -2763,7 +2768,7 @@ class Null(Value):
 
     def added_to(self, other: Value) -> RuntimeResult:
         if isinstance(other, Text):
-            return RuntimeResult.success(Text(str(self) + other.value))
+            return RuntimeResult().success(Text(str(self) + other.value))
 
         return RuntimeResult().failure(RuntimeError(
             self.start_position, other.end_position,
@@ -2902,12 +2907,11 @@ class BuiltIn(Value):
 
     def execute(self, arguments: list[Value]) -> RuntimeResult:
         result = RuntimeResult()
-        end_position = self.end_position.copy().advance()
 
         if self.base_value is None:
-            value = result.register(self.value(self.context, self.start_position, end_position, *arguments))
+            value = result.register(self.value(self.context, self.start_position, self.end_position, *arguments))
         else:
-            value = result.register(self.value(self.context, self.start_position, end_position, self.base_value, *arguments))
+            value = result.register(self.value(self.context, self.start_position, self.end_position, self.base_value, *arguments))
 
         if result.error: return result
 
@@ -3206,7 +3210,8 @@ print(list[0]) // > 42
 - Dictionaries are defined with comma-separated key-value pairs encapsulated between pipes.
 - To read a value from its key, use `$dictionary["key"]`.
 - To assign a value to a key, use `$dictionary["key"] = "value"`.
-- `$dictionary.key` reads or assigns to a key, as long as it isn't shadowed by a method.
+- `$dictionary.key` reads a key, as long as it isn't shadowed by a method.
+- `$dictionary.key = "value"` assigns to a key.
 
 ### Example
 
@@ -3294,20 +3299,21 @@ When a text object is executed, a new scope is created for its variables. Variab
 
 ##### Lists
 
-| Function            | Parameters                       | Description                                                                       | Return type |
-| ------------------- | -------------------------------- | --------------------------------------------------------------------------------- | ----------- |
-| `List.append`       | `element: object`                | Adds the `element` to the end of the list.                                        | `List`      |
-| `List.extend`       | `other: List`                    | Adds all elements in `other` to the end of the list.                              | `List`      |
-| `List.remove`       | `element: object`                | Removes the first occurence of `element` from the list.                           | `List`      |
-| `List.remove_all`   | `element: object`                | Removes all occurrences of `elements` from the list.                              | `List`      |
-| `List.subtract`     | `other: List`                    | Removes the first occurence of each element in `other` from the list.             | `List`      |
-| `List.subtract_all` | `other: List`                    | Removes all occurences of each element in `other` from the list.                  | `List`      |
-| `List.contains`     | `element: object`                | Returns `1` if the list contains the `element`, and `0` if it doesn't.            | `Number`    |
-| `List.index_of`     | `element: object`                | Returns the index of the first ocurrence of `element` in the list.                | `Number`    |
-| `List.insert`       | `index: Number, element: object` | Adds the `element` at the provided `index`.                                       | `List`      |
-| `List.pop`          | `index: Number`                  | Removes the element found at the provided `index`.                                | `List`      |
-| `List.count`        | `element: object`                | Returns the number of occurences of `element` in the list.                        | `Number`    |
-| `List.slice`        | `start: Number, end: Number`     | Returns a sublist from `start` (inclusive) to `end` (exclusive).                  | `List`      |
+| Function            | Parameters                       | Description                                                                                                     | Return type |
+| ------------------- | -------------------------------- | --------------------------------------------------------------------------------------------------------------- | ----------- |
+| `List.append`       | `element: object`                | Adds the `element` to the end of the list.                                                                      | `List`      |
+| `List.extend`       | `other: List`                    | Adds all elements in `other` to the end of the list.                                                            | `List`      |
+| `List.remove`       | `element: object`                | Removes the first occurence of `element` from the list.                                                         | `List`      |
+| `List.remove_all`   | `element: object`                | Removes all occurrences of `elements` from the list.                                                            | `List`      |
+| `List.subtract`     | `other: List`                    | Removes the first occurence of each element in `other` from the list.                                           | `List`      |
+| `List.subtract_all` | `other: List`                    | Removes all occurences of each element in `other` from the list.                                                | `List`      |
+| `List.contains`     | `element: object`                | Returns `1` if the list contains the `element`, and `0` if it doesn't.                                          | `Number`    |
+| `List.index_of`     | `element: object`                | Returns the index of the first ocurrence of `element` in the list.                                              | `Number`    |
+| `List.insert`       | `index: Number, element: object` | Adds the `element` at the provided `index`.                                                                     | `List`      |
+| `List.pop`          | `index: Number`                  | Removes the element found at the provided `index`.                                                              | `List`      |
+| `List.count`        | `element: object`                | Returns the number of occurences of `element` in the list.                                                      | `Number`    |
+| `List.slice`        | `start: Number, end: Number`     | Returns a sublist from `start` (inclusive) to `end` (exclusive).                                                | `List`      |
+| `List.map`          | `function: Text`                 | Executes the given function for each element (with `arguments[0] = element`) and returns the results as a list. | `List`      |
 
 ##### Dictionaries
 
@@ -3323,14 +3329,15 @@ When a text object is executed, a new scope is created for its variables. Variab
 
 ##### Text
 
-| Function             | Parameters     | Description                                          | Return type |
-| -------------------- | -------------- | ---------------------------------------------------- | ----------- |
-| `Text.to_lowercase`  |                | Returns the lowercase equivalent of the text object. | `Text`      |
-| `Text.to_uppercase`  |                | Returns the upper equivalent of the text object.     | `Text`      |
-| `Text.add_prefix`    | `prefix: Text` | Adds a `prefix` to the text object.                  | `Text`      |
-| `Text.remove_prefix` | `prefix: Text` | Removes a `prefix` from the text object, if present. | `Text`      |
-| `Text.add_suffix`    | `suffix: Text` | Adds a `suffix` to the text object.                  | `Text`      |
-| `Text.remove_suffix` | `suffix: Text` | Removes a `suffix` from the text object, if present. | `Text`      |
+| Function             | Parameters     | Description                                             | Return type |
+| -------------------- | -------------- | ------------------------------------------------------- | ----------- |
+| `Text.strip`         |                | Removes leading and trailing whitespaces from the text. | `Text`      |
+| `Text.to_lowercase`  |                | Returns the lowercase equivalent of the text object.    | `Text`      |
+| `Text.to_uppercase`  |                | Returns the upper equivalent of the text object.        | `Text`      |
+| `Text.add_prefix`    | `prefix: Text` | Adds a `prefix` to the text object.                     | `Text`      |
+| `Text.remove_prefix` | `prefix: Text` | Removes a `prefix` from the text object, if present.    | `Text`      |
+| `Text.add_suffix`    | `suffix: Text` | Adds a `suffix` to the text object.                     | `Text`      |
+| `Text.remove_suffix` | `suffix: Text` | Removes a `suffix` from the text object, if present.    | `Text`      |
 
 ## Flow control
 
@@ -3452,7 +3459,13 @@ You are an expert in creating computer code in the RUNTIME programming language.
 
 """ + user_prompt
 
-    return ai_prompt(context, start_position, end_position, Text(system_prompt))
+    result = RuntimeResult()
+
+    output = result.register(ai_prompt(context, start_position, end_position, Text(system_prompt)))
+    if result.error: return output
+
+    output.value = output.value.strip().removeprefix('```runtime').strip().removesuffix('```')
+    return result.success(output)
 
 default_symbol_table.set(Text('ai'), Dictionary({ 
     Text("prompt"): BuiltIn(ai_prompt).set_context(global_context),
@@ -4310,6 +4323,47 @@ def List_slice(context, start_position, end_position, *arguments):
     list_object.value = list_object.value[start:end]
     return RuntimeResult().success(list_object.set_context(context))
 
+def List_map(context, start_position, end_position, *arguments):
+    if len(arguments) < 1:
+        return RuntimeResult().failure(RuntimeError(
+            start_position, end_position,
+            'Method must be called on a list',
+            context
+        ))
+    
+    if len(arguments) < 2:
+        return RuntimeResult().failure(RuntimeError(
+            start_position, end_position,
+            'Missing argument: function',
+            context
+        ))
+    
+    if not isinstance(arguments[0], List):
+        return RuntimeResult().failure(RuntimeError(
+            start_position, end_position,
+            'Type error: method must be called on a list',
+            context
+        ))
+    
+    if not isinstance(arguments[1], Text):
+        return RuntimeResult().failure(RuntimeError(
+            start_position, end_position,
+            'Type error: first argument must be a text object',
+            context
+        ))
+
+    result = RuntimeResult()
+    old_list = arguments[0].copy()
+    new_list = List([])
+    function = arguments[1]
+
+    for element in old_list.value:
+        output = result.register(function.execute([element]))
+        new_list.value.append(output)
+
+    return result.success(new_list.set_context(context))
+
+
 def Dictionary_merge(context, start_position, end_position, *arguments):
     if len(arguments) < 1:
         return RuntimeResult().failure(RuntimeError(
@@ -4557,6 +4611,24 @@ def Dictionary_values(context, start_position, end_position, *arguments):
     
     return RuntimeResult().success(List(values).set_context(context))
 
+
+def Text_strip(context, start_position, end_position, *arguments):
+    if len(arguments) < 1:
+        return RuntimeResult().failure(RuntimeError(
+            start_position, end_position,
+            'Method must be called on a text object',
+            context
+        ))
+    
+    if not isinstance(arguments[0], Text):
+        return RuntimeResult().failure(RuntimeError(
+            start_position, end_position,
+            'Type error: method must be called on a text object',
+            context
+        ))
+    
+    return RuntimeResult().success(Text(arguments[0].value.strip()).set_context(context))
+
 def Text_to_lowercase(context, start_position, end_position, *arguments):
     if len(arguments) < 1:
         return RuntimeResult().failure(RuntimeError(
@@ -4777,7 +4849,7 @@ built_ins = {
     'type': type_of_value,
     'Number': lambda context, start_position, end_position, *arguments: convert_value(context, start_position, end_position, 'to_number', *arguments),
     'Text': lambda context, start_position, end_position, *arguments: convert_value(context, start_position, end_position, 'to_text', *arguments),
-    'List': lambda context, start_position, end_position, *arguments: RuntimeResult().success(List(arguments).set_context(context)),
+    'List': lambda context, start_position, end_position, *arguments: RuntimeResult().success(List(*arguments).set_context(context)),
     'Dictionary': dictionary_from_key_value_lists,
     'BuiltIn': lambda context, start_position, end_position, *arguments: convert_value(context, start_position, end_position, 'to_built_in', *arguments),
     'Boolean': lambda context, start_position, end_position, *arguments: convert_value(context, start_position, end_position, 'to_boolean', *arguments),
@@ -4794,6 +4866,7 @@ built_ins = {
     'List~pop': List_pop,
     'List~count': List_count,
     'List~slice': List_slice,
+    'List~map': List_map,
     'Dictionary~merge': Dictionary_merge,
     'Dictionary~difference': Dictionary_difference,
     'Dictionary~add': Dictionary_add,
@@ -4801,6 +4874,7 @@ built_ins = {
     'Dictionary~remove_many': Dictionary_remove_many,
     'Dictionary~keys': Dictionary_keys,
     'Dictionary~values': Dictionary_values,
+    'Text~strip': Text_strip,
     'Text~to_lowercase': Text_to_lowercase,
     'Text~to_uppercase': Text_to_uppercase,
     'Text~remove_prefix': Text_remove_prefix,

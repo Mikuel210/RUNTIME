@@ -137,7 +137,8 @@ print(list[0]) // > 42
 - Dictionaries are defined with comma-separated key-value pairs encapsulated between pipes.
 - To read a value from its key, use `$dictionary["key"]`.
 - To assign a value to a key, use `$dictionary["key"] = "value"`.
-- `$dictionary.key` reads or assigns to a key, as long as it isn't shadowed by a method.
+- `$dictionary.key` reads a key, as long as it isn't shadowed by a method.
+- `$dictionary.key = "value"` assigns to a key.
 
 ### Example
 
