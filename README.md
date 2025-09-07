@@ -115,7 +115,7 @@ print("Back to normal!") // > Back to normal!
 
 ```javascript
 while (true) {
-    request = input("INPUT (execute | add feature): ").to_lowercase()
+    request = input("INPUT (execute | add feature): ").strip().to_lowercase()
 
     if (request == "execute") 
     {
