@@ -1,32 +1,7 @@
-![RUNTIME banner](images/banner.png)
-
 **RUNTIME is a complete reimagining of what a programming language could and should be.**
 
 RUNTIME is a heavily opinionated, dynamic interpreted language built for flexibility and adaptability.
 No type cages. No compile-time errors. No bloat. Just you, your ideas and a blank canvas.
-
-> **ABOUT AI USAGE:** I have used AI to rewrite some parts of this README and for general design guidance. AI hasn't written a single line of code for this project.
-
-# NAVIGATION
-
-- [PHILOSOPHY - The 6 Core Pillars of RUNTIME](#philosophy---the-6-core-pillars-of-runtime)
-    - [Typed languages are cages](#typed-languages-are-cages)
-    - [Variables are memory entries](#variables-are-memory-entries)
-    - [Code is text](#code-is-text)
-    - [Programs should evolve](#programs-should-evolve)
-    - [Errors are values](#errors-are-values)
-    - [Simplicity is key](#simplicity-is-key)
-- [USE CASES](#use-cases)
-    - [Examples](#examples)
-        - [1. Code is text](#1-code-is-text)
-        - [2. Dynamic variables](#2-dynamic-variables)
-        - [3. Hot-swapping built-ins](#3-hot-swapping-built-ins)
-        - [4. AI written features](#4-ai-written-features)
-- [GETTING STARTED](#getting-started)
-    - [Prerequisites](#prerequisites)
-    - [Installation](#installation)
-    - [Usage](#usage)
-    - [Resources](#resources)
 
 # PHILOSOPHY - The 6 Core Pillars of RUNTIME
 
@@ -56,7 +31,7 @@ Make one typo and your whole app explodes? That's a JOKE. In RUNTIME, errors are
 
 > **An idiot admires complexity, a genius admires simplicity**
 >
-> — Terry Davis, creator of TempleOS
+> - Terry Davis, creator of TempleOS
 
 Tuples, arrays, lists, stacks, queues... WHY? RUNTIME gives you just 7 types. No bloat. No confusion. No distractions. Still, all the tools you need to ACTUALLY bring your projects to life.
 
@@ -140,8 +115,6 @@ while (true) {
     print()
 }
 ```
-
-![Example image](images/example.png)
 
 # GETTING STARTED
 

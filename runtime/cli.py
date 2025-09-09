@@ -1,8 +1,12 @@
 from . import runtime
 from sys import exit, argv
 import os
+import importlib
 
 BASE_DIRECTORY = os.getcwd()
+
+with importlib.resources.path('runtime', 'data') as data_path:
+    DATA_DIRECTORY = data_path
 
 def main():
     if len(argv) == 1:
@@ -13,7 +17,10 @@ def main():
 
 def run(file_name, log = True):
     try:
-        path = os.path.join(BASE_DIRECTORY, "programs", file_name)
+        path = os.path.join(BASE_DIRECTORY, file_name)
+        if not os.path.exists(path) and not path.endswith('.run'): path = path + '.run'
+
+        if not os.path.exists(path): path = os.path.join(DATA_DIRECTORY, file_name)
         if not os.path.exists(path) and not path.endswith('.run'): path = path + '.run'
 
         with open(path, 'r') as file:
@@ -27,7 +34,7 @@ def run(file_name, log = True):
 
     except FileNotFoundError:
         display_name = file_name if file_name.endswith('.run') else file_name + '.run'
-        print(f"Could not open file: programs/{display_name}")
+        print(f"Could not open file: {display_name}")
 
 def repl():
     while True:
