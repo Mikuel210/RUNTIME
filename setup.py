@@ -11,7 +11,7 @@ setup(
     long_description = long_description,
     long_description_content_type = 'text/markdown',
     packages = find_packages(),
-    install_requires = ["colorama"],
+    install_requires = ["colorama", "requests"],
     entry_points = {
         'console_scripts': ['runtime=runtime.cli:main'],
     },
