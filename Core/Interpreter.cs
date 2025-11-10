@@ -65,6 +65,7 @@ public static class Interpreter {
 			'-' => leftValue.SubtractedBy(rightValue),
 			'*' => leftValue.MultipliedBy(rightValue),
 			'/' => leftValue.DividedBy(rightValue),
+			'^' => leftValue.PoweredBy(rightValue),
 			_ => leftValue.ReducedTo(rightValue)
 		};
 	}

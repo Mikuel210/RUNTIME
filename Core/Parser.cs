@@ -55,7 +55,7 @@ public class Parser(Lexer lexer) {
 
 	private Node Term() {
 		return ArithmeticOperation(
-			[Token.EType.Multiply, Token.EType.Divide],
+			[Token.EType.Multiply, Token.EType.Divide, Token.EType.Modulo],
 			Factor
 		);	
 	}
@@ -65,12 +65,25 @@ public class Parser(Lexer lexer) {
 		
 		if (token.Type is Token.EType.Add or Token.EType.Subtract) {
 			Advance();
-			var factor = Factor();
+			Node factor = Factor();
 			
 			return new UnaryOperationNode(token, factor);
 		}
 
-		return Atom();
+		return Power();
+	}
+
+	private Node Power()
+	{
+		var atom = Atom();
+		Token token = CurrentToken;
+
+		if (token.Type == Token.EType.Power) {
+			Advance();
+			return new BinaryOperationNode(token, atom, Factor());
+		}
+
+		return atom;
 	}
 
 	private Node Atom() => BaseAtom();
