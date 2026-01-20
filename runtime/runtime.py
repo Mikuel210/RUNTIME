@@ -10,6 +10,8 @@ import requests
 import json
 import math
 import random
+from pathlib import Path
+from platformdirs import user_config_dir
 
 #endregion
 
@@ -3393,6 +3395,18 @@ When a text object is executed, a new scope is created for its variables. Variab
 
 """
 
+APP_NAME = "runtime"
+CONFIG_DIR = Path(user_config_dir(APP_NAME))
+CONFIG_FILE = CONFIG_DIR / "config.json"
+
+def load_config():
+    if not CONFIG_FILE.exists():
+        return {}
+    try:
+        return json.loads(CONFIG_FILE.read_text())
+    except json.JSONDecodeError:
+        return {}
+
 def ai_prompt(context, start_position, end_position, *arguments):
     if len(arguments) < 1:
         return RuntimeResult().failure(RuntimeError(
@@ -3403,26 +3417,44 @@ def ai_prompt(context, start_position, end_position, *arguments):
 
     try:
         user_prompt = arguments[0].value
+        config = load_config()
 
-        url = 'https://ai.hackclub.com/chat/completions'
+        if "api_key" in config:
+            api_key = config["api_key"]
+        else:
+            return RuntimeResult().failure(RuntimeError(
+                start_position, end_position,
+                'Hack Club AI API key was not provided. Run `runtime --set-api-key [YOUR_API_KEY]`.',
+                context
+            ))
+
+        url = 'https://ai.hackclub.com/proxy/v1/chat/completions'
 
         headers = {
-            'Content-Type': 'application/json'
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer ' + api_key
         }
 
-        data = { "messages": [
-            {
-                "role": "user",
-                "content": user_prompt
-            }    
-        ]}
+        data = {
+            "model": "google/gemini-3-flash-preview",
+            "messages": [
+                {
+                    "role": "user",
+                    "content": user_prompt
+                }    
+            ]
+        }
 
         result = requests.post(url, data = json.dumps(data), headers = headers)
         result = json.loads(result.text, strict = False)
 
         text = result["choices"][0]["message"]["content"]
-        index = text.index("</think>") + len("</think>")
-        text = text[index:].removeprefix("\n\n")
+
+        try:
+            index = text.index("</think>") + len("</think>")
+            text = text[index:].removeprefix("\n\n")
+        except:
+            pass
 
         return RuntimeResult().success(Text(text).set_context(context))
     

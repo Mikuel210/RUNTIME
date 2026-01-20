@@ -2,7 +2,8 @@
 
 **RUNTIME is a complete reimagining of what a programming language could and should be.**
 
-RUNTIME is a heavily opinionated, dynamic interpreted language built for flexibility and adaptability.
+RUNTIME is a dynamic, interpreted language that removes the boundaries between data and code.
+
 No type cages. No compile-time errors. No bloat. Just you, your ideas and a blank canvas.
 
 > **ABOUT AI USAGE:** I have used AI to rewrite some parts of this README and for general design guidance. AI hasn't written a single line of code for this project.
@@ -181,6 +182,11 @@ pip install runtime-lang
 
     ```bash 
     runtime
+    ```
+- Set Hack Club AI API key
+
+    ```bash 
+    runtime --set-api-key [YOUR_API_KEY]
     ```
 
 ## Resources
